@@ -17,6 +17,7 @@ static XEvent event;
 
 void getInput(void) {
     XGrabKey(dpy, XKeysymToKeycode(dpy, XK_space), Mod1Mask, root, True, GrabModeAsync, GrabModeAsync);
+    XGrabButton(dpy, 1, Mod1Mask, root, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
 }
 
 void loop(void) {
@@ -24,6 +25,7 @@ void loop(void) {
         XNextEvent(dpy, &event);
         fflush(stdout);
         if (event.type == KeyPress) fprintf(stdout, "A key is pressed\n");
+        else if(event.type == ButtonPress) fprintf(stdout, "Mouse Left click\n");
     }
 }
 
