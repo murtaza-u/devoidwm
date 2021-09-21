@@ -13,16 +13,17 @@ static void getInput(void);
 
 static Display *dpy;
 static Window root;
+static XEvent event;
 
 void getInput(void) {
     XGrabKey(dpy, XKeysymToKeycode(dpy, XK_space), Mod1Mask, root, True, GrabModeAsync, GrabModeAsync);
 }
 
 void loop(void) {
-    XEvent event;
     while (1) {
         XNextEvent(dpy, &event);
-        if (event.type == KeyPress) printf("A key is pressed");
+        fflush(stdout);
+        if (event.type == KeyPress) fprintf(stdout, "A key is pressed\n");
     }
 }
 
@@ -42,6 +43,7 @@ void stop(void) {
 
 int main(void) {
     start();
+    getInput();
     loop();
     stop();
     return 0;
