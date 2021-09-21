@@ -22,6 +22,7 @@ void loop(void) {
     XEvent event;
     while (1) {
         XNextEvent(dpy, &event);
+        if (event.type == KeyPress) printf("A key is pressed");
     }
 }
 
