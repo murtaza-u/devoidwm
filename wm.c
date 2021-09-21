@@ -4,8 +4,16 @@
 
 static void start(void);
 static void stop(void);
+static void loop(void);
 
 static Display *dpy;
+
+void loop(void) {
+    XEvent event;
+    while (1) {
+        XNextEvent(dpy, &event);
+    }
+}
 
 void start(void) {
     if (!(dpy = XOpenDisplay(NULL))) {
@@ -22,6 +30,7 @@ void stop(void) {
 
 int main(void) {
     start();
+    loop();
     stop();
     return 0;
 }
