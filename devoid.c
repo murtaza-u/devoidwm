@@ -129,7 +129,8 @@ void destroyNotify(XEvent *event) {
 }
 
 void kill(XEvent *event, char *command) {
-    XDestroyWindow(dpy, event -> xkey.subwindow);
+    XSetCloseDownMode(dpy, DestroyAll);
+    XKillClient(dpy, event->xkey.subwindow);
 }
 
 void changeFocus(XEvent *event, char *command) {
