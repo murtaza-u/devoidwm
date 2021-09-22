@@ -18,6 +18,7 @@ static void handleMouseClick(XEvent *event);
 static void handlePointerMotion(XEvent *event);
 static void map(XEvent *event);
 static void quit(XEvent *event, char *command);
+static void changeFocus(XEvent *event, char *command);
 
 static bool running;
 static Display *dpy;
@@ -43,16 +44,32 @@ struct Client {
     unsigned int width, height, old_width, old_height;
     Window win;
     Client *next;
+    Client *prev;
 };
 
 static Client *head = NULL;
+static Client *focused = NULL;
 static unsigned int totalClients = 0;
 
 static const unsigned int MODKEY = Mod4Mask;
 
 static const key keys[] = {
     {MODKEY|ShiftMask, XK_q, quit, NULL},
+    {MODKEY, XK_j, changeFocus, "next"},
+    {MODKEY, XK_k, changeFocus, "prev"},
 };
+
+void changeFocus(XEvent *event, char *command) {
+    if (focused == NULL) return;
+
+    if (command[0] == 'n' && focused -> next != NULL)
+        focused = focused -> next;
+    else if (command[0] == 'p' && focused -> prev != NULL)
+        focused = focused -> prev;
+
+    XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
+    XRaiseWindow(dpy, focused -> win);
+}
 
 void quit(XEvent *event, char *command) {
     running = false;
@@ -87,17 +104,19 @@ void map(XEvent *event) {
             client -> height = root.height / totalClients;
             configureWindow(client);
             client = client -> next;
-            if (client == NULL) break;
         }
+        head -> prev = newClient;
     }
 
     totalClients ++;
     newClient -> next = head;
+    newClient -> prev = NULL;
     head = newClient;
 
     configureWindow(newClient);
     XMapWindow(dpy, newClient -> win);
     XSetInputFocus(dpy, newClient -> win, RevertToParent, CurrentTime);
+    focused = newClient;
     XRaiseWindow(dpy, newClient -> win);
 }
 
