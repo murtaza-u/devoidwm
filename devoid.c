@@ -19,9 +19,14 @@ static void handlePointerMotion(XEvent *event);
 static void map(XEvent *event);
 
 static Display *dpy;
-static Window root;
 static XButtonEvent prevPointerPosition;
 static XWindowAttributes attr;
+
+struct root {
+    Window win;
+    int width;
+    int height;
+} root;
 
 typedef struct {
     unsigned int modifier;
@@ -38,8 +43,7 @@ static const key keys[] = {
 
 void map(XEvent *event) {
     Window window = event -> xmaprequest.window;
-    XGetWindowAttributes(dpy, root, &attr);
-    XMoveResizeWindow(dpy, window, 0, 0, attr.width, attr.height);
+    XMoveResizeWindow(dpy, window, 0, 0, root.width, root.height);
     XMapWindow(dpy, window);
 }
 
@@ -89,14 +93,14 @@ void getInput(void) {
             dpy,
             XKeysymToKeycode(dpy, keys[i].keysym),
             keys[i].modifier,
-            root,
+            root.win,
             True,
             GrabModeAsync,
             GrabModeAsync
         );
 
-    XGrabButton(dpy, 1, Mod1Mask, root, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
-    XGrabButton(dpy, 3, Mod1Mask, root, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
+    XGrabButton(dpy, 1, Mod1Mask, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
+    XGrabButton(dpy, 3, Mod1Mask, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
 }
 
 void loop(void) {
@@ -122,8 +126,14 @@ void start(void) {
         exit(EXIT_FAILURE);
     }
     fprintf(stdout, "Connected to the xserver\n");
-    root = DefaultRootWindow(dpy);
-    XSelectInput(dpy, root, SubstructureRedirectMask);
+
+    // root window
+    root.win = DefaultRootWindow(dpy);
+    XGetWindowAttributes(dpy, root.win, &attr);
+    root.width = attr.width;
+    root.height = attr.height;
+
+    XSelectInput(dpy, root.win, SubstructureRedirectMask);
 }
 
 void stop(void) {
