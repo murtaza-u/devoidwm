@@ -11,9 +11,25 @@ static void stop(void);
 static void loop(void);
 static void getInput(void);
 
+static void print(char *command, XEvent *event) {
+    printf("%s\n", command);
+}
+
 static Display *dpy;
 static Window root;
-static XEvent event;
+
+typedef struct {
+    unsigned int modifier;
+    KeySym keysym;
+    void (*execute)(char *command, XEvent *event);
+    char *command;
+} key;
+
+static const unsigned int MODKEY = Mod4Mask;
+
+static const key keys[] = {
+    {MODKEY, XK_space, print, "Hello, world"},
+};
 
 void getInput(void) {
     XGrabKey(dpy, XKeysymToKeycode(dpy, XK_space), Mod1Mask, root, True, GrabModeAsync, GrabModeAsync);
@@ -21,6 +37,7 @@ void getInput(void) {
 }
 
 void loop(void) {
+    XEvent event;
     while (1) {
         XNextEvent(dpy, &event);
         fflush(stdout);
