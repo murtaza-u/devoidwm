@@ -7,6 +7,8 @@
 #include <X11/keysym.h>
 #include <X11/keysymdef.h>
 
+#define MAX(a, b) (a) > (b) ? (a) : (b)
+
 static void start(void);
 static void stop(void);
 static void loop(void);
@@ -19,6 +21,8 @@ static void print(char *command, XEvent *event) {
 
 static Display *dpy;
 static Window root;
+static XButtonEvent prevPosition;
+static XWindowAttributes attr;
 
 typedef struct {
     unsigned int modifier;
@@ -56,6 +60,7 @@ void getInput(void) {
     }
 
     XGrabButton(dpy, 1, Mod1Mask, root, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
+    XGrabButton(dpy, 3, Mod1Mask, root, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
 }
 
 void loop(void) {
@@ -64,7 +69,35 @@ void loop(void) {
         XNextEvent(dpy, &event);
         fflush(stdout);
         if (event.type == KeyPress) handleKeyPress(&event);
-        else if(event.type == ButtonPress) fprintf(stdout, "Mouse Left click\n");
+        else if(event.type == ButtonPress && event.xbutton.subwindow != None) {
+            XGrabPointer(
+                dpy,
+                event.xbutton.subwindow,
+                True,
+                PointerMotionMask|ButtonReleaseMask,
+                GrabModeAsync,
+                GrabModeAsync,
+                None,
+                None,
+                CurrentTime
+            );
+            XGetWindowAttributes(dpy, event.xbutton.subwindow, &attr);
+            prevPosition = event.xbutton;
+        } else if (event.type == MotionNotify) {
+            while(XCheckTypedEvent(dpy, MotionNotify, &event));
+            int dx = event.xbutton.x_root - prevPosition.x_root;
+            int dy = event.xbutton.y_root - prevPosition.y_root;
+            int isLeftClick = prevPosition.button == 1;
+            XMoveResizeWindow(
+                dpy,
+                event.xmotion.window,
+                attr.x + (isLeftClick ? dx : 0),
+                attr.y + (isLeftClick ? dy : 0),
+                MAX(5, attr.width + (isLeftClick ? 0 : dx)),
+                MAX(5, attr.height + (isLeftClick ? 0 : dy))
+            );
+        } else if (event.type == ButtonRelease)
+            XUngrabPointer(dpy, CurrentTime);
     }
 }
 
