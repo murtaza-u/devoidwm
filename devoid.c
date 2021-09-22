@@ -155,11 +155,15 @@ void destroyNotify(XEvent *event) {
         if (client == head) head = head -> next;
         else if (client == tail) tail = tail -> prev;
 
-        free(client);
         break;
     }
 
-    if (head != NULL) focus(head);
+    if (client != NULL && head != NULL) {
+        if (client -> prev != NULL) focus(client -> prev);
+        else focus(tail);
+        free(client);
+    }
+
     totalClients --;
     restack();
 }
