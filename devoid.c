@@ -141,38 +141,25 @@ void restack() {
 
 void destroyNotify(XEvent *event) {
     Window destroyedWindow = event -> xdestroywindow.window;
-    Client *temp;
+    Client *client = head;
 
-    if (head -> win == destroyedWindow) {
-        temp = head;
-        head = head -> next;
-        if (head != NULL) head -> prev = NULL;
-        else tail = NULL;
-    } else if (tail -> win == destroyedWindow) {
-        temp = tail;
-        tail = tail -> prev;
-        if (tail != NULL) tail -> next = NULL;
-        else head = NULL;
-    } else {
-        Client *client = head -> next;
-        while (client != tail && client != NULL) {
-            if (client -> win == destroyedWindow) {
-                temp = client;
-                if (client -> next != NULL) client -> next -> prev = client -> prev;
-                if (client -> prev != NULL) client -> prev -> next = client -> next;
-                break;
-            }
+    while (client != NULL) {
+        if (client -> win != destroyedWindow) {
             client = client -> next;
-        }
+            continue;
+        };
+
+        if (client -> next != NULL) client -> next -> prev = client -> prev;
+        if (client -> prev != NULL) client -> prev -> next = client -> next;
+
+        if (client == head) head = head -> next;
+        else if (client == tail) tail = tail -> prev;
+
+        free(client);
+        break;
     }
 
-    free(temp);
-    focused = head;
-    if (focused != NULL) {
-        XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
-        XRaiseWindow(dpy, focused -> win);
-    }
-
+    if (head != NULL) focus(head);
     totalClients --;
     restack();
 }
