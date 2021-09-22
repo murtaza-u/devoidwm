@@ -1,3 +1,4 @@
+#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -7,6 +8,8 @@
 #include <X11/keysymdef.h>
 
 #define MAX(a, b) (a) > (b) ? (a) : (b)
+#define MODCLEAN(mask) (mask & \
+        (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
 
 typedef struct Client Client;
 struct Client {
@@ -34,8 +37,9 @@ static void destroyNotify(XEvent *event);
 static void restack();
 static void configureSlaveWindows(Client *firstSlave, unsigned int slaveCount);
 static void zoom(XEvent *event, char *command);
-static void swap(Client *c1, Client *c2);
-static void focusMaster();
+static void swap(Client *focusedClient, Client *targetClient);
+static void swapWithNeighbour(XEvent *event, char *command);
+static void focus(Client *client);
 
 static bool running;
 static Display *dpy;
@@ -68,6 +72,8 @@ static const key keys[] = {
     {MODKEY, XK_k, changeFocus, "prev"},
     {MODKEY, XK_x, kill, NULL},
     {MODKEY, XK_space, zoom, NULL},
+    {MODKEY|ShiftMask, XK_j, swapWithNeighbour, "next"},
+    {MODKEY|ShiftMask, XK_k, swapWithNeighbour, "prev"},
 };
 
 static void (*handleEvents[LASTEvent])(XEvent *event) = {
@@ -79,19 +85,27 @@ static void (*handleEvents[LASTEvent])(XEvent *event) = {
     [DestroyNotify] = destroyNotify,
 };
 
-void focusMaster() {
-    focused = head;
+void focus(Client *client) {
+    focused = client;
     XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
     XRaiseWindow(dpy, focused -> win);
 }
 
-void swap(Client *c1, Client *c2) {
-    Window temp = c1 -> win;
-    c1 -> win = c2 -> win;
-    c2 -> win = temp;
+void swapWithNeighbour(XEvent *event, char *command) {
+    (void)event;
+    if (focused == NULL || totalClients == 1) return;
+    if (command[0] == 'n') swap(focused, focused -> next != NULL ? focused -> next : head);
+    else swap(focused, focused -> prev != NULL ? focused -> prev : tail);
+}
 
-    configureWindow(c1);
-    configureWindow(c2);
+void swap(Client *focusedClient, Client *targetClient) {
+    Window temp = focusedClient -> win;
+    focusedClient -> win = targetClient -> win;
+    targetClient -> win = temp;
+
+    configureWindow(focusedClient);
+    configureWindow(targetClient);
+    focus(targetClient);
 }
 
 void zoom(XEvent *event, char *command) {
@@ -100,7 +114,7 @@ void zoom(XEvent *event, char *command) {
     if (focused == NULL || totalClients == 1) return;
 
     swap(head, focused);
-    focusMaster();
+    focus(head);
 }
 
 void configureSlaveWindows(Client *firstSlave, unsigned int slaveCount) {
@@ -266,11 +280,12 @@ void handleButtonRelease(XEvent *event) {
 }
 
 void handleKeyPress(XEvent *event) {
+
     for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
         KeySym keysym = XkbKeycodeToKeysym(dpy, event -> xkey.keycode, 0, 0);
-        if (keysym == keys[i].keysym) {
+        if (keysym == keys[i].keysym
+                && MODCLEAN(keys[i].modifier) == MODCLEAN(event -> xkey.state))
             keys[i].execute(event, keys[i].command);
-        }
     }
 }
 
