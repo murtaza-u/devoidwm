@@ -9,6 +9,15 @@
 
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 
+typedef struct Client Client;
+struct Client {
+    unsigned int x, y, old_x, old_y;
+    unsigned int width, height, old_width, old_height;
+    Window win;
+    Client *next;
+    Client *prev;
+};
+
 static void start(void);
 static void stop(void);
 static void loop(void);
@@ -17,8 +26,12 @@ static void handleKeyPress(XEvent *event);
 static void handleMouseClick(XEvent *event);
 static void handlePointerMotion(XEvent *event);
 static void map(XEvent *event);
+static void configureWindow(Client *client);
 static void quit(XEvent *event, char *command);
 static void changeFocus(XEvent *event, char *command);
+static void kill(XEvent *event, char *command);
+static void destroyNotify(XEvent *event);
+static void restack();
 
 static bool running;
 static Display *dpy;
@@ -38,15 +51,6 @@ typedef struct {
     char *command;
 } key;
 
-typedef struct Client Client;
-struct Client {
-    unsigned int x, y, old_x, old_y;
-    unsigned int width, height, old_width, old_height;
-    Window win;
-    Client *next;
-    Client *prev;
-};
-
 static Client *head = NULL;
 static Client *tail = NULL;
 static Client *focused = NULL;
@@ -58,7 +62,75 @@ static const key keys[] = {
     {MODKEY|ShiftMask, XK_q, quit, NULL},
     {MODKEY, XK_j, changeFocus, "next"},
     {MODKEY, XK_k, changeFocus, "prev"},
+    {MODKEY, XK_x, kill, NULL},
 };
+
+void restack() {
+    if (head == NULL) return;
+
+    head -> x = 0;
+    head -> y = 0;
+    head -> height = root.height;
+
+    if (totalClients == 1) head -> width = root.width;
+    else head -> width = root.width / 2;
+
+    configureWindow(head);
+
+    if (totalClients == 1) return;
+
+    Client *client = head -> next;
+    for (unsigned int i = 0; i < totalClients - 1; i ++) {
+        client -> x = root.width / 2;
+        client -> y = (i * root.height) / (totalClients - 1);
+        client -> width = root.width / 2;
+        client -> height = root.height / (totalClients - 1);
+        configureWindow(client);
+        client = client -> next;
+    }
+}
+
+void destroyNotify(XEvent *event) {
+    Window destroyedWindow = event -> xdestroywindow.window;
+
+    if (head -> win == destroyedWindow) {
+        Client *temp = head;
+        head = head -> next;
+        if (head != NULL) head -> prev = NULL;
+        else tail = NULL;
+        free(temp);
+    } else if (tail -> win == destroyedWindow) {
+        Client *temp = tail;
+        tail = tail -> prev;
+        if (tail != NULL) tail -> next = NULL;
+        else head = NULL;
+        free(temp);
+    } else {
+        Client *client = head -> next;
+        while (client != tail && client != NULL) {
+            if (client -> win == destroyedWindow) {
+                if (client -> next != NULL) client -> next -> prev = client -> prev;
+                if (client -> prev != NULL) client -> prev -> next = client -> next;
+                free(client);
+                break;
+            }
+            client = client -> next;
+        }
+    }
+
+    focused = head;
+    if (focused != NULL) {
+        XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
+        XRaiseWindow(dpy, focused -> win);
+    }
+
+    totalClients --;
+    restack();
+}
+
+void kill(XEvent *event, char *command) {
+    XDestroyWindow(dpy, event -> xkey.subwindow);
+}
 
 void changeFocus(XEvent *event, char *command) {
     if (focused == NULL && focused -> next == NULL && focused -> prev == NULL)
@@ -118,6 +190,7 @@ void map(XEvent *event) {
 
     configureWindow(newClient);
     XMapWindow(dpy, newClient -> win);
+    XSelectInput(dpy, newClient -> win, StructureNotifyMask);
     XSetInputFocus(dpy, newClient -> win, RevertToParent, CurrentTime);
     focused = newClient;
     XRaiseWindow(dpy, newClient -> win);
@@ -193,6 +266,8 @@ void loop(void) {
             XUngrabPointer(dpy, CurrentTime);
         else if (event.type == MapRequest)
             map(&event);
+        else if (event.type == DestroyNotify)
+            destroyNotify(&event);
     }
 }
 
