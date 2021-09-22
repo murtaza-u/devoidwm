@@ -136,11 +136,13 @@ void destroyNotify(XEvent *event) {
 }
 
 void kill(XEvent *event, char *command) {
+    (void)command;
     XSetCloseDownMode(dpy, DestroyAll);
     XKillClient(dpy, event->xkey.subwindow);
 }
 
 void changeFocus(XEvent *event, char *command) {
+    (void)event;
     if (focused == NULL && focused -> next == NULL && focused -> prev == NULL)
         return;
 
@@ -154,6 +156,8 @@ void changeFocus(XEvent *event, char *command) {
 }
 
 void quit(XEvent *event, char *command) {
+    (void)event;
+    (void)command;
     running = false;
 }
 
@@ -229,6 +233,7 @@ void handlePointerMotion(XEvent *event) {
 }
 
 void handleButtonRelease(XEvent *event) {
+    (void)event;
     XUngrabPointer(dpy, CurrentTime);
 }
 
