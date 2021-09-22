@@ -16,6 +16,7 @@ static void getInput(void);
 static void handleKeyPress(XEvent *event);
 static void handleMouseClick(XEvent *event);
 static void handlePointerMotion(XEvent *event);
+static void map(XEvent *event);
 
 static Display *dpy;
 static Window root;
@@ -32,7 +33,15 @@ typedef struct {
 static const unsigned int MODKEY = Mod4Mask;
 
 static const key keys[] = {
+    {MODKEY, XK_space, NULL, NULL},
 };
+
+void map(XEvent *event) {
+    Window window = event -> xmaprequest.window;
+    XGetWindowAttributes(dpy, root, &attr);
+    XMoveResizeWindow(dpy, window, 0, 0, attr.width, attr.height);
+    XMapWindow(dpy, window);
+}
 
 void handleMouseClick(XEvent *event) {
     XGrabPointer(
@@ -45,7 +54,7 @@ void handleMouseClick(XEvent *event) {
         None,
         None,
         CurrentTime
-        );
+    );
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
     prevPointerPosition = event -> xbutton;
 }
@@ -75,7 +84,7 @@ void handleKeyPress(XEvent *event) {
 }
 
 void getInput(void) {
-    for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
+    for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++)
         XGrabKey(
             dpy,
             XKeysymToKeycode(dpy, keys[i].keysym),
@@ -85,7 +94,6 @@ void getInput(void) {
             GrabModeAsync,
             GrabModeAsync
         );
-    }
 
     XGrabButton(dpy, 1, Mod1Mask, root, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
     XGrabButton(dpy, 3, Mod1Mask, root, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
@@ -103,6 +111,8 @@ void loop(void) {
             handlePointerMotion(&event);
         else if (event.type == ButtonRelease)
             XUngrabPointer(dpy, CurrentTime);
+        else if (event.type == MapRequest)
+            map(&event);
     }
 }
 
@@ -113,6 +123,7 @@ void start(void) {
     }
     fprintf(stdout, "Connected to the xserver\n");
     root = DefaultRootWindow(dpy);
+    XSelectInput(dpy, root, SubstructureRedirectMask);
 }
 
 void stop(void) {
