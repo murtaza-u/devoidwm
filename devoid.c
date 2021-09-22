@@ -33,6 +33,9 @@ static void kill(XEvent *event, char *command);
 static void destroyNotify(XEvent *event);
 static void restack();
 static void configureSlaveWindows(Client *firstSlave, unsigned int slaveCount);
+static void zoom(XEvent *event, char *command);
+static void swap(Client *c1, Client *c2);
+static void focusMaster();
 
 static bool running;
 static Display *dpy;
@@ -64,6 +67,7 @@ static const key keys[] = {
     {MODKEY, XK_j, changeFocus, "next"},
     {MODKEY, XK_k, changeFocus, "prev"},
     {MODKEY, XK_x, kill, NULL},
+    {MODKEY, XK_space, zoom, NULL},
 };
 
 static void (*handleEvents[LASTEvent])(XEvent *event) = {
@@ -74,6 +78,30 @@ static void (*handleEvents[LASTEvent])(XEvent *event) = {
     [MapRequest] = map,
     [DestroyNotify] = destroyNotify,
 };
+
+void focusMaster() {
+    focused = head;
+    XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
+    XRaiseWindow(dpy, focused -> win);
+}
+
+void swap(Client *c1, Client *c2) {
+    Window temp = c1 -> win;
+    c1 -> win = c2 -> win;
+    c2 -> win = temp;
+
+    configureWindow(c1);
+    configureWindow(c2);
+}
+
+void zoom(XEvent *event, char *command) {
+    (void)command;
+    (void)command;
+    if (focused == NULL || totalClients == 1) return;
+
+    swap(head, focused);
+    focusMaster();
+}
 
 void configureSlaveWindows(Client *firstSlave, unsigned int slaveCount) {
     for (unsigned int i = 0; i < slaveCount; i ++) {
@@ -138,7 +166,7 @@ void destroyNotify(XEvent *event) {
 void kill(XEvent *event, char *command) {
     (void)command;
     XSetCloseDownMode(dpy, DestroyAll);
-    XKillClient(dpy, event->xkey.subwindow);
+    XKillClient(dpy, event -> xkey.subwindow);
 }
 
 void changeFocus(XEvent *event, char *command) {
