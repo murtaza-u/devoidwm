@@ -48,6 +48,7 @@ struct Client {
 };
 
 static Client *head = NULL;
+static Client *tail = NULL;
 static Client *focused = NULL;
 static unsigned int totalClients = 0;
 
@@ -60,12 +61,13 @@ static const key keys[] = {
 };
 
 void changeFocus(XEvent *event, char *command) {
-    if (focused == NULL) return;
+    if (focused == NULL && focused -> next == NULL && focused -> prev == NULL)
+        return;
 
-    if (command[0] == 'n' && focused -> next != NULL)
-        focused = focused -> next;
-    else if (command[0] == 'p' && focused -> prev != NULL)
-        focused = focused -> prev;
+    if (command[0] == 'n')
+        focused = (focused -> next != NULL) ? focused -> next : head;
+    else if (command[0] == 'p')
+        focused = (focused -> prev != NULL) ? focused -> prev : tail;
 
     XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
     XRaiseWindow(dpy, focused -> win);
@@ -94,6 +96,7 @@ void map(XEvent *event) {
 
     if (head == NULL) {
         newClient -> width = root.width;
+        tail = newClient;
     } else {
         newClient -> width = root.width / 2;
         Client *client = head;
