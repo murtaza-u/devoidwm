@@ -58,6 +58,16 @@ void quit(XEvent *event, char *command) {
     running = false;
 }
 
+void configureWindow(Client *client) {
+    XWindowChanges changes = {
+        .x = client -> x,
+        .y = client -> y,
+        .width = client -> width,
+        .height = client -> height
+    };
+    XConfigureWindow(dpy, client -> win, CWX|CWY|CWWidth|CWHeight, &changes);
+}
+
 void map(XEvent *event) {
     Client *newClient = (Client *)malloc(sizeof(Client));
     newClient -> win = event -> xmaprequest.window;
@@ -75,15 +85,7 @@ void map(XEvent *event) {
             client -> y = (i * root.height) / totalClients;
             client -> width = root.width / 2;
             client -> height = root.height / totalClients;
-
-            XWindowChanges changes = {
-                .x = client -> x,
-                .y = client -> y,
-                .width = client -> width,
-                .height = client -> height
-            };
-            XConfigureWindow(dpy, client -> win, CWX|CWY|CWWidth|CWHeight, &changes);
-
+            configureWindow(client);
             client = client -> next;
             if (client == NULL) break;
         }
@@ -93,15 +95,10 @@ void map(XEvent *event) {
     newClient -> next = head;
     head = newClient;
 
-    XWindowChanges changes = {
-        .x = newClient -> x,
-        .y = newClient -> y,
-        .width = newClient -> width,
-        .height = newClient -> height,
-    };
-    XConfigureWindow(dpy, newClient -> win, CWX|CWY|CWWidth|CWHeight, &changes);
-
+    configureWindow(newClient);
     XMapWindow(dpy, newClient -> win);
+    XSetInputFocus(dpy, newClient -> win, RevertToParent, CurrentTime);
+    XRaiseWindow(dpy, newClient -> win);
 }
 
 void handleMouseClick(XEvent *event) {
