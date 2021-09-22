@@ -18,7 +18,7 @@ static void handlePointerMotion(XEvent *event);
 static void map(XEvent *event);
 static void quit(XEvent *event, char *command);
 
-static int running;
+static bool running;
 static Display *dpy;
 static XButtonEvent prevPointerPosition;
 static XWindowAttributes attr;
@@ -36,6 +36,15 @@ typedef struct {
     char *command;
 } key;
 
+typedef struct {
+    int x, y, old_x, old_y;
+    int width, height, old_width, old_height;
+    Window win;
+    struct client *next;
+    struct client *prev;
+} client;
+
+static client *head = NULL;
 static const unsigned int MODKEY = Mod4Mask;
 
 static const key keys[] = {
@@ -111,7 +120,7 @@ void getInput(void) {
 void loop(void) {
     XEvent event;
     while (running) {
-        XNextEvent(dpy, &event);
+        XNextEvent(dpy, &event); // blocking -> waits for next event to occur
         if (event.type == KeyPress)
             handleKeyPress(&event);
         else if(event.type == ButtonPress && event.xbutton.subwindow != None)
