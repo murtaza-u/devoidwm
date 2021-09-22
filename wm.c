@@ -1,4 +1,5 @@
 #include <X11/X.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <X11/Xlib.h>
@@ -32,7 +33,18 @@ static const key keys[] = {
 };
 
 void getInput(void) {
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XK_space), Mod1Mask, root, True, GrabModeAsync, GrabModeAsync);
+    for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
+        XGrabKey(
+            dpy,
+            XKeysymToKeycode(dpy, keys[i].keysym),
+            keys[i].modifier,
+            root,
+            True,
+            GrabModeAsync,
+            GrabModeAsync
+        );
+    }
+
     XGrabButton(dpy, 1, Mod1Mask, root, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
 }
 
