@@ -1,7 +1,6 @@
-#include <X11/X.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
 #include <X11/keysym.h>
@@ -17,7 +16,9 @@ static void handleKeyPress(XEvent *event);
 static void handleMouseClick(XEvent *event);
 static void handlePointerMotion(XEvent *event);
 static void map(XEvent *event);
+static void quit(XEvent *event, char *command);
 
+static int running;
 static Display *dpy;
 static XButtonEvent prevPointerPosition;
 static XWindowAttributes attr;
@@ -31,15 +32,19 @@ struct root {
 typedef struct {
     unsigned int modifier;
     KeySym keysym;
-    void (*execute)(char *command, XEvent *event);
+    void (*execute)(XEvent *event, char *command);
     char *command;
 } key;
 
 static const unsigned int MODKEY = Mod4Mask;
 
 static const key keys[] = {
-    {MODKEY, XK_space, NULL, NULL},
+    {MODKEY|ShiftMask, XK_q, quit, NULL},
 };
+
+void quit(XEvent *event, char *command) {
+    running = false;
+}
 
 void map(XEvent *event) {
     Window window = event -> xmaprequest.window;
@@ -82,7 +87,7 @@ void handleKeyPress(XEvent *event) {
     for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
         KeySym keysym = XkbKeycodeToKeysym(dpy, event -> xkey.keycode, 0, 0);
         if (keysym == keys[i].keysym) {
-            keys[i].execute(keys[i].command, event);
+            keys[i].execute(event, keys[i].command);
         }
     }
 }
@@ -105,7 +110,7 @@ void getInput(void) {
 
 void loop(void) {
     XEvent event;
-    while (1) {
+    while (running) {
         XNextEvent(dpy, &event);
         if (event.type == KeyPress)
             handleKeyPress(&event);
@@ -126,6 +131,7 @@ void start(void) {
         exit(EXIT_FAILURE);
     }
     fprintf(stdout, "Connected to the xserver\n");
+    running = true;
 
     // root window
     root.win = DefaultRootWindow(dpy);
