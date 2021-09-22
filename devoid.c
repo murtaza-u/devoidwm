@@ -11,6 +11,7 @@ static void start(void);
 static void stop(void);
 static void loop(void);
 static void getInput(void);
+static void handleKeyPress(XEvent *event);
 
 static void print(char *command, XEvent *event) {
     printf("%s\n", command);
@@ -31,6 +32,15 @@ static const unsigned int MODKEY = Mod4Mask;
 static const key keys[] = {
     {MODKEY, XK_space, print, "Hello, world"},
 };
+
+void handleKeyPress(XEvent *event) {
+    for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
+        KeySym keysym = XkbKeycodeToKeysym(dpy, event -> xkey.keycode, 0, 0);
+        if (keysym == keys[i].keysym) {
+            keys[i].execute(keys[i].command, event);
+        }
+    }
+}
 
 void getInput(void) {
     for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
@@ -53,7 +63,7 @@ void loop(void) {
     while (1) {
         XNextEvent(dpy, &event);
         fflush(stdout);
-        if (event.type == KeyPress) fprintf(stdout, "A key is pressed\n");
+        if (event.type == KeyPress) handleKeyPress(&event);
         else if(event.type == ButtonPress) fprintf(stdout, "Mouse Left click\n");
     }
 }
