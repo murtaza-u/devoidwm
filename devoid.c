@@ -1,3 +1,4 @@
+#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -36,15 +37,17 @@ typedef struct {
     char *command;
 } key;
 
-typedef struct {
-    int x, y, old_x, old_y;
-    int width, height, old_width, old_height;
+typedef struct Client Client;
+struct Client {
+    unsigned int x, y, old_x, old_y;
+    unsigned int width, height, old_width, old_height;
     Window win;
-    struct client *next;
-    struct client *prev;
-} client;
+    Client *next;
+};
 
-static client *head = NULL;
+static Client *head = NULL;
+static unsigned int totalClients = 0;
+
 static const unsigned int MODKEY = Mod4Mask;
 
 static const key keys[] = {
@@ -56,9 +59,49 @@ void quit(XEvent *event, char *command) {
 }
 
 void map(XEvent *event) {
-    Window window = event -> xmaprequest.window;
-    XMoveResizeWindow(dpy, window, 0, 0, root.width, root.height);
-    XMapWindow(dpy, window);
+    Client *newClient = (Client *)malloc(sizeof(Client));
+    newClient -> win = event -> xmaprequest.window;
+    newClient -> x = 0;
+    newClient -> y = 0;
+    newClient -> height = root.height;
+
+    if (head == NULL) {
+        newClient -> width = root.width;
+    } else {
+        newClient -> width = root.width / 2;
+        Client *client = head;
+        for (unsigned int i = 0; i < totalClients; i ++) {
+            client -> x = root.width / 2;
+            client -> y = (i * root.height) / totalClients;
+            client -> width = root.width / 2;
+            client -> height = root.height / totalClients;
+
+            XWindowChanges changes = {
+                .x = client -> x,
+                .y = client -> y,
+                .width = client -> width,
+                .height = client -> height
+            };
+            XConfigureWindow(dpy, client -> win, CWX|CWY|CWWidth|CWHeight, &changes);
+
+            client = client -> next;
+            if (client == NULL) break;
+        }
+    }
+
+    totalClients ++;
+    newClient -> next = head;
+    head = newClient;
+
+    XWindowChanges changes = {
+        .x = newClient -> x,
+        .y = newClient -> y,
+        .width = newClient -> width,
+        .height = newClient -> height,
+    };
+    XConfigureWindow(dpy, newClient -> win, CWX|CWY|CWWidth|CWHeight, &changes);
+
+    XMapWindow(dpy, newClient -> win);
 }
 
 void handleMouseClick(XEvent *event) {
@@ -113,8 +156,8 @@ void getInput(void) {
             GrabModeAsync
         );
 
-    XGrabButton(dpy, 1, Mod1Mask, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
-    XGrabButton(dpy, 3, Mod1Mask, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
+    XGrabButton(dpy, 1, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
+    XGrabButton(dpy, 3, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
 }
 
 void loop(void) {
