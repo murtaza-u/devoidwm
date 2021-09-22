@@ -14,14 +14,12 @@ static void stop(void);
 static void loop(void);
 static void getInput(void);
 static void handleKeyPress(XEvent *event);
-
-static void print(char *command, XEvent *event) {
-    printf("%s\n", command);
-}
+static void handleMouseClick(XEvent *event);
+static void handlePointerMotion(XEvent *event);
 
 static Display *dpy;
 static Window root;
-static XButtonEvent prevPosition;
+static XButtonEvent prevPointerPosition;
 static XWindowAttributes attr;
 
 typedef struct {
@@ -34,8 +32,38 @@ typedef struct {
 static const unsigned int MODKEY = Mod4Mask;
 
 static const key keys[] = {
-    {MODKEY, XK_space, print, "Hello, world"},
 };
+
+void handleMouseClick(XEvent *event) {
+    XGrabPointer(
+        dpy,
+        event -> xbutton.subwindow,
+        True,
+        PointerMotionMask|ButtonReleaseMask,
+        GrabModeAsync,
+        GrabModeAsync,
+        None,
+        None,
+        CurrentTime
+        );
+    XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
+    prevPointerPosition = event -> xbutton;
+}
+
+void handlePointerMotion(XEvent *event) {
+    while(XCheckTypedEvent(dpy, MotionNotify, event));
+    int dx = event -> xbutton.x_root - prevPointerPosition.x_root;
+    int dy = event -> xbutton.y_root - prevPointerPosition.y_root;
+    int isLeftClick = prevPointerPosition.button == 1;
+    XMoveResizeWindow(
+        dpy,
+        event -> xmotion.window,
+        attr.x + (isLeftClick ? dx : 0),
+        attr.y + (isLeftClick ? dy : 0),
+        MAX(5, attr.width + (isLeftClick ? 0 : dx)),
+        MAX(5, attr.height + (isLeftClick ? 0 : dy))
+    );
+}
 
 void handleKeyPress(XEvent *event) {
     for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
@@ -67,36 +95,13 @@ void loop(void) {
     XEvent event;
     while (1) {
         XNextEvent(dpy, &event);
-        fflush(stdout);
-        if (event.type == KeyPress) handleKeyPress(&event);
-        else if(event.type == ButtonPress && event.xbutton.subwindow != None) {
-            XGrabPointer(
-                dpy,
-                event.xbutton.subwindow,
-                True,
-                PointerMotionMask|ButtonReleaseMask,
-                GrabModeAsync,
-                GrabModeAsync,
-                None,
-                None,
-                CurrentTime
-            );
-            XGetWindowAttributes(dpy, event.xbutton.subwindow, &attr);
-            prevPosition = event.xbutton;
-        } else if (event.type == MotionNotify) {
-            while(XCheckTypedEvent(dpy, MotionNotify, &event));
-            int dx = event.xbutton.x_root - prevPosition.x_root;
-            int dy = event.xbutton.y_root - prevPosition.y_root;
-            int isLeftClick = prevPosition.button == 1;
-            XMoveResizeWindow(
-                dpy,
-                event.xmotion.window,
-                attr.x + (isLeftClick ? dx : 0),
-                attr.y + (isLeftClick ? dy : 0),
-                MAX(5, attr.width + (isLeftClick ? 0 : dx)),
-                MAX(5, attr.height + (isLeftClick ? 0 : dy))
-            );
-        } else if (event.type == ButtonRelease)
+        if (event.type == KeyPress)
+            handleKeyPress(&event);
+        else if(event.type == ButtonPress && event.xbutton.subwindow != None)
+            handleMouseClick(&event);
+        else if (event.type == MotionNotify)
+            handlePointerMotion(&event);
+        else if (event.type == ButtonRelease)
             XUngrabPointer(dpy, CurrentTime);
     }
 }
