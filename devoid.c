@@ -42,6 +42,7 @@ static void zoom(XEvent *event, char *command);
 static void swap(Client *focusedClient, Client *targetClient);
 static void swapWithNeighbour(XEvent *event, char *command);
 static void focus(Client *client);
+static void setClientRules(Client *client);
 
 static bool running;
 static Display *dpy;
@@ -78,6 +79,15 @@ static const key keys[] = {
     {MODKEY|ShiftMask, XK_k, swapWithNeighbour, "prev"},
 };
 
+typedef struct Rules {
+    char *class;
+    bool isfloating;
+} Rules;
+
+static const Rules rules[] = {
+    {"Pinentry-gtk-2", true},
+};
+
 static void (*handleEvents[LASTEvent])(XEvent *event) = {
     [KeyPress] = handleKeyPress,
     [ButtonPress] = handleButtonPress,
@@ -86,6 +96,18 @@ static void (*handleEvents[LASTEvent])(XEvent *event) = {
     [MapRequest] = map,
     [DestroyNotify] = destroyNotify,
 };
+
+void setClientRules(Client *client) {
+    XClassHint hint;
+    XGetClassHint(dpy, client -> win, &hint);
+
+    for (size_t i = 0; i < sizeof(rules)/ sizeof(Rules); i ++) {
+        if (strcasecmp(hint.res_class, rules[i].class) == 0) {
+            client -> isfloating = rules[i].isfloating;
+            break;
+        };
+    }
+}
 
 void focus(Client *client) {
     focused = client;
@@ -216,10 +238,8 @@ void map(XEvent *event) {
     XRaiseWindow(dpy, newClient -> win);
     focus(newClient);
 
-    XClassHint hint;
-    XGetClassHint(dpy, newClient -> win, &hint);
-    if (strcmp(hint.res_class, "Pinentry-gtk-2") == 0)
-        return;
+    setClientRules(newClient);
+    if (newClient -> isfloating) return;
 
     newClient -> x = 0;
     newClient -> y = 0;
