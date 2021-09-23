@@ -1,11 +1,12 @@
-#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #include <X11/keysymdef.h>
+#include <X11/Xutil.h>
 
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 #define MODCLEAN(mask) (mask & \
@@ -18,6 +19,7 @@ struct Client {
     Window win;
     Client *next;
     Client *prev;
+    bool isfloating, isfullscreen;
 };
 
 static void start(void);
@@ -170,8 +172,9 @@ void destroyNotify(XEvent *event) {
 
 void kill(XEvent *event, char *command) {
     (void)command;
+    (void)event;
     XSetCloseDownMode(dpy, DestroyAll);
-    XKillClient(dpy, event -> xkey.subwindow);
+    XKillClient(dpy, event->xkey.subwindow);
 }
 
 void changeFocus(XEvent *event, char *command) {
@@ -207,6 +210,17 @@ void configureWindow(Client *client) {
 void map(XEvent *event) {
     Client *newClient = (Client *)malloc(sizeof(Client));
     newClient -> win = event -> xmaprequest.window;
+    XMapWindow(dpy, newClient -> win);
+    XSelectInput(dpy, newClient -> win, StructureNotifyMask);
+    XSetInputFocus(dpy, newClient -> win, RevertToParent, CurrentTime);
+    XRaiseWindow(dpy, newClient -> win);
+    focus(newClient);
+
+    XClassHint hint;
+    XGetClassHint(dpy, newClient -> win, &hint);
+    if (strcmp(hint.res_class, "Pinentry-gtk-2") == 0)
+        return;
+
     newClient -> x = 0;
     newClient -> y = 0;
     newClient -> height = root.height;
@@ -226,11 +240,6 @@ void map(XEvent *event) {
     head = newClient;
 
     configureWindow(newClient);
-    XMapWindow(dpy, newClient -> win);
-    XSelectInput(dpy, newClient -> win, StructureNotifyMask);
-    XSetInputFocus(dpy, newClient -> win, RevertToParent, CurrentTime);
-    focused = newClient;
-    XRaiseWindow(dpy, newClient -> win);
 }
 
 void handleButtonPress(XEvent *event) {
