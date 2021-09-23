@@ -98,11 +98,13 @@ static void (*handleEvents[LASTEvent])(XEvent *event) = {
 };
 
 void setClientRules(Client *client) {
+    client -> isfloating = false;
+
     XClassHint hint;
     XGetClassHint(dpy, client -> win, &hint);
 
     for (size_t i = 0; i < sizeof(rules)/ sizeof(Rules); i ++) {
-        if (strcasecmp(hint.res_class, rules[i].class) == 0) {
+        if (strcmp(hint.res_class, rules[i].class) == 0) {
             client -> isfloating = rules[i].isfloating;
             break;
         };
@@ -134,7 +136,7 @@ void swap(Client *focusedClient, Client *targetClient) {
 
 void zoom(XEvent *event, char *command) {
     (void)command;
-    (void)command;
+    (void)event;
     if (focused == NULL || totalClients == 1) return;
 
     swap(head, focused);
@@ -182,21 +184,22 @@ void destroyNotify(XEvent *event) {
         break;
     }
 
-    if (client != NULL && head != NULL) {
+    if (client == NULL) return;
+
+    if (head != NULL) {
         if (client -> prev != NULL) focus(client -> prev);
         else focus(tail);
-        free(client);
     }
 
+    free(client);
     totalClients --;
     restack();
 }
 
 void kill(XEvent *event, char *command) {
     (void)command;
-    (void)event;
     XSetCloseDownMode(dpy, DestroyAll);
-    XKillClient(dpy, event->xkey.subwindow);
+    XKillClient(dpy, event -> xkey.subwindow);
 }
 
 void changeFocus(XEvent *event, char *command) {
@@ -206,11 +209,9 @@ void changeFocus(XEvent *event, char *command) {
 
     if (command[0] == 'n')
         focused = (focused -> next != NULL) ? focused -> next : head;
-    else if (command[0] == 'p')
-        focused = (focused -> prev != NULL) ? focused -> prev : tail;
+    else focused = (focused -> prev != NULL) ? focused -> prev : tail;
 
-    XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
-    XRaiseWindow(dpy, focused -> win);
+    focus(focused);
 }
 
 void quit(XEvent *event, char *command) {
@@ -234,8 +235,6 @@ void map(XEvent *event) {
     newClient -> win = event -> xmaprequest.window;
     XMapWindow(dpy, newClient -> win);
     XSelectInput(dpy, newClient -> win, StructureNotifyMask);
-    XSetInputFocus(dpy, newClient -> win, RevertToParent, CurrentTime);
-    XRaiseWindow(dpy, newClient -> win);
     focus(newClient);
 
     setClientRules(newClient);
