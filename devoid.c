@@ -119,7 +119,7 @@ void focus(Client *client) {
 
 void swapWithNeighbour(XEvent *event, char *command) {
     (void)event;
-    if (focused == NULL || totalClients == 1) return;
+    if (focused == NULL || totalClients == 1 || focused -> isfloating) return;
     if (command[0] == 'n') swap(focused, focused -> next != NULL ? focused -> next : head);
     else swap(focused, focused -> prev != NULL ? focused -> prev : tail);
 }
@@ -137,7 +137,7 @@ void swap(Client *focusedClient, Client *targetClient) {
 void zoom(XEvent *event, char *command) {
     (void)command;
     (void)event;
-    if (focused == NULL || totalClients == 1) return;
+    if (focused == NULL || totalClients == 1 || focused -> isfloating) return;
 
     swap(head, focused);
     focus(head);
@@ -160,9 +160,11 @@ void restack() {
     head -> y = 0;
     head -> height = root.height;
     if (totalClients == 1) head -> width = root.width;
-    else head -> width = root.width / 2;
+    else {
+        head -> width = root.width / 2;
+        configureSlaveWindows(head -> next, totalClients - 1);
+    }
     configureWindow(head);
-    if (totalClients != 1) configureSlaveWindows(head -> next, totalClients - 1);
 }
 
 void destroyNotify(XEvent *event) {
@@ -177,22 +179,21 @@ void destroyNotify(XEvent *event) {
 
         if (client -> next != NULL) client -> next -> prev = client -> prev;
         if (client -> prev != NULL) client -> prev -> next = client -> next;
-
         if (client == head) head = head -> next;
-        else if (client == tail) tail = tail -> prev;
-
+        if (client == tail) tail = tail -> prev;
         break;
     }
 
-    if (client == NULL) return;
-
-    if (head != NULL) {
-        if (client -> prev != NULL) focus(client -> prev);
-        else focus(tail);
+    if (client == NULL) {
+        free(focused);
+        if (head != NULL) focus(head);
+        return;
     }
 
-    free(client);
+    if (head != NULL) focus(client -> prev != NULL ? client -> prev : tail);
+
     totalClients --;
+    free(client);
     restack();
 }
 
@@ -205,7 +206,8 @@ void kill(XEvent *event, char *command) {
 
 void changeFocus(XEvent *event, char *command) {
     (void)event;
-    if (focused == NULL && focused -> next == NULL && focused -> prev == NULL)
+    if ((focused == NULL && focused -> next == NULL && focused -> prev == NULL)
+        || focused -> isfloating)
         return;
 
     if (command[0] == 'n')
