@@ -241,7 +241,15 @@ void map(XEvent *event) {
     focus(newClient);
 
     setClientRules(newClient);
-    if (newClient -> isfloating) return;
+    if (newClient -> isfloating) {
+        XGetWindowAttributes(dpy, newClient -> win, &attr);
+        newClient -> width = attr.width;
+        newClient -> height = attr.height;
+        newClient -> x = root.width/2 - newClient -> width/2;
+        newClient -> y = root.height/2 - newClient -> height/2;
+        configureWindow(newClient);
+        return;
+    };
 
     newClient -> x = 0;
     newClient -> y = 0;
