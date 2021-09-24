@@ -33,7 +33,7 @@ static void handleButtonRelease(XEvent *event);
 static void map(XEvent *event);
 static void configureWindow(Client *client);
 static void quit(XEvent *event, char *command);
-static void changeFocus(XEvent *event, char *command);
+static void focusAdjacent(XEvent *event, char *command);
 static void kill(XEvent *event, char *command);
 static void destroyNotify(XEvent *event);
 static void restack();
@@ -56,7 +56,6 @@ struct root {
 } root;
 
 static Client *head = NULL;
-static Client *tail = NULL;
 static Client *focused = NULL;
 static unsigned int totalClients = 0;
 
@@ -71,8 +70,8 @@ typedef struct {
 
 static const key keys[] = {
     {MODKEY|ShiftMask, XK_q, quit, NULL},
-    {MODKEY, XK_j, changeFocus, "next"},
-    {MODKEY, XK_k, changeFocus, "prev"},
+    {MODKEY, XK_j, focusAdjacent, "next"},
+    {MODKEY, XK_k, focusAdjacent, "prev"},
     {MODKEY, XK_x, kill, NULL},
     {MODKEY, XK_space, zoom, NULL},
     {MODKEY|ShiftMask, XK_j, swapWithNeighbour, "next"},
@@ -87,6 +86,7 @@ typedef struct Rules {
 static const Rules rules[] = {
     {"Pinentry-gtk-2", true},
 };
+
 
 static void (*handleEvents[LASTEvent])(XEvent *event) = {
     [KeyPress] = handleKeyPress,
@@ -113,15 +113,16 @@ void setClientRules(Client *client) {
 
 void focus(Client *client) {
     focused = client;
+    if (focused == NULL) return;
     XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
     XRaiseWindow(dpy, focused -> win);
 }
 
 void swapWithNeighbour(XEvent *event, char *command) {
     (void)event;
-    if (focused == NULL || totalClients == 1 || focused -> isfloating) return;
-    if (command[0] == 'n') swap(focused, focused -> next != NULL ? focused -> next : head);
-    else swap(focused, focused -> prev != NULL ? focused -> prev : tail);
+    if (focused == NULL || focused -> next == NULL || focused -> isfloating)
+        return;
+    swap(focused, command[0] == 'n' ? focused -> next : focused -> prev);
 }
 
 void swap(Client *focusedClient, Client *targetClient) {
@@ -137,8 +138,8 @@ void swap(Client *focusedClient, Client *targetClient) {
 void zoom(XEvent *event, char *command) {
     (void)command;
     (void)event;
-    if (focused == NULL || totalClients == 1 || focused -> isfloating) return;
-
+    if (focused == NULL || focused -> next == NULL || focused -> isfloating)
+        return;
     swap(head, focused);
     focus(head);
 }
@@ -171,29 +172,33 @@ void destroyNotify(XEvent *event) {
     Window destroyedWindow = event -> xdestroywindow.window;
     Client *client = head;
 
-    while (client != NULL) {
-        if (client -> win != destroyedWindow) {
-            client = client -> next;
-            continue;
-        };
+    do {
+        if (client -> win == destroyedWindow) {
+            if (client == head) head = head -> next;
+            if (client -> next == NULL) break;
+            if (client -> next -> next == client) {
+                client -> next -> next = NULL;
+                client -> next -> prev = NULL;
+            } else {
+                client -> prev -> next = client -> next;
+                client -> next -> prev = client -> prev;
+            }
+            break;
+        }
+        client = client -> next;
+    } while (client != NULL && client != head);
 
-        if (client -> next != NULL) client -> next -> prev = client -> prev;
-        if (client -> prev != NULL) client -> prev -> next = client -> next;
-        if (client == head) head = head -> next;
-        if (client == tail) tail = tail -> prev;
-        break;
-    }
+    if (client == NULL) return;
 
-    if (client == NULL) {
+    if (client == head) {
         free(focused);
-        if (head != NULL) focus(head);
+        focus(head);
         return;
     }
 
-    if (head != NULL) focus(client -> prev != NULL ? client -> prev : tail);
-
-    totalClients --;
+    focus(client -> prev);
     free(client);
+    totalClients --;
     restack();
 }
 
@@ -204,16 +209,12 @@ void kill(XEvent *event, char *command) {
     XKillClient(dpy, focused -> win);
 }
 
-void changeFocus(XEvent *event, char *command) {
+void focusAdjacent(XEvent *event, char *command) {
     (void)event;
-    if ((focused == NULL && focused -> next == NULL && focused -> prev == NULL)
-        || focused -> isfloating)
+    if (focused == NULL || focused -> next == NULL || focused -> isfloating)
         return;
 
-    if (command[0] == 'n')
-        focused = (focused -> next != NULL) ? focused -> next : head;
-    else focused = (focused -> prev != NULL) ? focused -> prev : tail;
-
+    focused = (command[0] == 'n') ? focused -> next : focused -> prev;
     focus(focused);
 }
 
@@ -254,21 +255,27 @@ void map(XEvent *event) {
     newClient -> x = 0;
     newClient -> y = 0;
     newClient -> height = root.height;
+    newClient -> next = head;
 
     if (head == NULL) {
+        newClient -> prev = NULL;
         newClient -> width = root.width;
-        tail = newClient;
     } else {
-        newClient -> width = root.width / 2;
         configureSlaveWindows(head, totalClients);
-        head -> prev = newClient;
+        newClient -> width = root.width / 2;
+        if (head -> prev == NULL) {
+            newClient -> prev = head;
+            head -> next = newClient;
+            head -> prev = newClient;
+        } else {
+            newClient -> prev = head -> prev;
+            head -> prev -> next = newClient;
+            head -> prev = newClient;
+        }
     }
 
-    totalClients ++;
-    newClient -> next = head;
-    newClient -> prev = NULL;
     head = newClient;
-
+    totalClients ++;
     configureWindow(newClient);
 }
 
@@ -310,7 +317,6 @@ void handleButtonRelease(XEvent *event) {
 }
 
 void handleKeyPress(XEvent *event) {
-
     for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
         KeySym keysym = XkbKeycodeToKeysym(dpy, event -> xkey.keycode, 0, 0);
         if (keysym == keys[i].keysym
