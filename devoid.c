@@ -131,8 +131,10 @@ void switchWorkspace(XEvent *event, char *command) {
     saveWorkspace(focused, head, totalClients, currentWorkspace);
 
     currentWorkspace = ws;
-    Client *client = focused;
-    if (client != NULL) {
+    Client *client;
+
+    if (focused != NULL) {
+        client = focused;
         do {
             XUnmapWindow(dpy, client -> win);
             client = client -> next;
@@ -424,6 +426,7 @@ void start(void) {
     root.height = attr.height;
 
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
+	XDefineCursor(dpy, root.win, XCreateFontCursor(dpy, 68));
 
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
         workspaces[i].head = NULL;
