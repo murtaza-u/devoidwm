@@ -1,3 +1,4 @@
+#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -7,6 +8,7 @@
 #include <X11/keysym.h>
 #include <X11/keysymdef.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
 
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 #define MODCLEAN(mask) (mask & \
@@ -46,6 +48,11 @@ static void focus(Client *client);
 static void setClientRules(Client *client);
 static void switchWorkspace(XEvent *event, char *command);
 static void saveWorkspace(Client *focused, Client *head, unsigned int totalClients, unsigned int ws);
+static void EwmhSetCurrentDesktop(unsigned int ws);
+
+enum { NetSupported, NetCurrentDesktop, NetNumberOfDesktops, NetLast };
+
+static Atom net_atoms[NetLast];
 
 static bool running;
 static Display *dpy;
@@ -117,6 +124,12 @@ static void (*handleEvents[LASTEvent])(XEvent *event) = {
     [DestroyNotify] = destroyNotify,
 };
 
+void EwmhSetCurrentDesktop(unsigned int ws) {
+    unsigned long data[1];
+    data[0] = ws + 1;
+    XChangeProperty(dpy, root.win, net_atoms[NetCurrentDesktop], XA_CARDINAL, 32, PropModeReplace, (unsigned char *)data, 1);
+}
+
 void saveWorkspace(Client *focused, Client *head,unsigned int totalClients, unsigned int ws) {
     workspaces[ws].focused = focused;
     workspaces[ws].head = head;
@@ -153,6 +166,7 @@ void switchWorkspace(XEvent *event, char *command) {
         } while (client != NULL && client != focused);
     }
     focus(focused);
+    EwmhSetCurrentDesktop(ws);
 }
 
 void setClientRules(Client *client) {
@@ -433,6 +447,18 @@ void start(void) {
         workspaces[i].focused= NULL;
         workspaces[i].totalClients = 0;
     }
+
+	net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
+    net_atoms[NetNumberOfDesktops] = XInternAtom(dpy, "_NET_NUMBER_OF_DESKTOPS", False);
+	net_atoms[NetCurrentDesktop] = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
+
+    XChangeProperty(dpy, root.win, net_atoms[NetSupported], XA_ATOM, 32, PropModeReplace, (unsigned char *)net_atoms, NetLast);
+    EwmhSetCurrentDesktop(0);
+
+    unsigned long data[1];
+    data[0] = MAX_WORKSPACES;
+    XChangeProperty(dpy, root.win, net_atoms[NetNumberOfDesktops], XA_CARDINAL, 32, PropModeReplace, (unsigned char *)data, 1);
+
 }
 
 void stop(void) {
