@@ -11,6 +11,7 @@
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 #define MODCLEAN(mask) (mask & \
         (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
+#define MAX_WORKSPACES 9
 
 typedef struct Client Client;
 struct Client {
@@ -43,6 +44,8 @@ static void swap(Client *focusedClient, Client *targetClient);
 static void swapWithNeighbour(XEvent *event, char *command);
 static void focus(Client *client);
 static void setClientRules(Client *client);
+static void switchWorkspace(XEvent *event, char *command);
+static void saveWorkspace(Client *focused, Client *head, unsigned int totalClients, unsigned int ws);
 
 static bool running;
 static Display *dpy;
@@ -57,7 +60,16 @@ struct root {
 
 static Client *head = NULL;
 static Client *focused = NULL;
+static unsigned int currentWorkspace = 0;
 static unsigned int totalClients = 0;
+
+struct workspace {
+    Client *head;
+    Client *focused;
+    unsigned int totalClients;
+};
+
+static struct workspace workspaces[MAX_WORKSPACES];
 
 static const unsigned int MODKEY = Mod4Mask;
 
@@ -76,6 +88,15 @@ static const key keys[] = {
     {MODKEY, XK_space, zoom, NULL},
     {MODKEY|ShiftMask, XK_j, swapWithNeighbour, "next"},
     {MODKEY|ShiftMask, XK_k, swapWithNeighbour, "prev"},
+    {MODKEY, XK_1, switchWorkspace, "0"},
+    {MODKEY, XK_2, switchWorkspace, "1"},
+    {MODKEY, XK_3, switchWorkspace, "2"},
+    {MODKEY, XK_4, switchWorkspace, "3"},
+    {MODKEY, XK_5, switchWorkspace, "4"},
+    {MODKEY, XK_6, switchWorkspace, "5"},
+    {MODKEY, XK_7, switchWorkspace, "6"},
+    {MODKEY, XK_8, switchWorkspace, "7"},
+    {MODKEY, XK_9, switchWorkspace, "8"},
 };
 
 typedef struct Rules {
@@ -87,7 +108,6 @@ static const Rules rules[] = {
     {"Pinentry-gtk-2", true},
 };
 
-
 static void (*handleEvents[LASTEvent])(XEvent *event) = {
     [KeyPress] = handleKeyPress,
     [ButtonPress] = handleButtonPress,
@@ -96,6 +116,42 @@ static void (*handleEvents[LASTEvent])(XEvent *event) = {
     [MapRequest] = map,
     [DestroyNotify] = destroyNotify,
 };
+
+void saveWorkspace(Client *focused, Client *head,unsigned int totalClients, unsigned int ws) {
+    workspaces[ws].focused = focused;
+    workspaces[ws].head = head;
+    workspaces[ws].totalClients = totalClients;
+}
+
+void switchWorkspace(XEvent *event, char *command) {
+    (void)event;
+    unsigned int ws = (int)(command[0] - '0');
+    if (ws == currentWorkspace) return;
+
+    saveWorkspace(focused, head, totalClients, currentWorkspace);
+
+    currentWorkspace = ws;
+    Client *client = focused;
+    if (client != NULL) {
+        do {
+            XUnmapWindow(dpy, client -> win);
+            client = client -> next;
+        } while (client != NULL && client != focused);
+    }
+
+    focused = workspaces[ws].focused;
+    head = workspaces[ws].head;
+    totalClients = workspaces[ws].totalClients;
+
+    if (focused != NULL) {
+        client = focused;
+        do {
+            XMapWindow(dpy, client -> win);
+            client = client -> next;
+        } while (client != NULL && client != focused);
+    }
+    focus(focused);
+}
 
 void setClientRules(Client *client) {
     client -> isfloating = false;
@@ -188,7 +244,10 @@ void destroyNotify(XEvent *event) {
         client = client -> next;
     } while (client != NULL && client != head);
 
-    if (client == NULL) return;
+    if (client == NULL) {
+        focused = NULL;
+        return;
+    };
 
     if (client == head) {
         free(focused);
@@ -365,6 +424,12 @@ void start(void) {
     root.height = attr.height;
 
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
+
+    for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
+        workspaces[i].head = NULL;
+        workspaces[i].focused= NULL;
+        workspaces[i].totalClients = 0;
+    }
 }
 
 void stop(void) {
