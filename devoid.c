@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +28,7 @@ static void start(void);
 static void stop(void);
 static void loop(void);
 static void grab(void);
+static int ignore(Display *display, XErrorEvent *event);
 
 // events
 static void keypress(XEvent *event);
@@ -43,7 +45,7 @@ static void configure_slave_windows(Client *first_slave, int slave_count);
 static void focus_adjacent(XEvent *event, char *command);
 static void focus(Client *client);
 static void quit(XEvent *event, char *command);
-static void kill(XEvent *event, char *command);
+static void kill_client(XEvent *event, char *command);
 static void swap(Client *focused_client, Client *target_client);
 static void swap_with_neighbour(XEvent *event, char *command);
 static void zoom(XEvent *event, char *command);
@@ -54,7 +56,7 @@ static void configure_non_floating_window(Client *client);
 
 // workspaces
 static void switch_workspace(XEvent *event, char *command);
-static void save_workspace(Client *focused, Client *head, unsigned int total_clients, unsigned int ws);
+static void save_workspace();
 static void ewmh_set_current_desktop(unsigned int ws);
 
 struct {
@@ -106,7 +108,7 @@ static const key keys[] = {
     {MODKEY|ShiftMask, XK_q, quit, NULL},
     {MODKEY, XK_j, focus_adjacent, "next"},
     {MODKEY, XK_k, focus_adjacent, "prev"},
-    {MODKEY, XK_x, kill, NULL},
+    {MODKEY, XK_x, kill_client, NULL},
     {MODKEY, XK_space, zoom, NULL},
     {MODKEY|ShiftMask, XK_j, swap_with_neighbour, "next"},
     {MODKEY|ShiftMask, XK_k, swap_with_neighbour, "prev"},
@@ -151,7 +153,7 @@ void configure_non_floating_window(Client *client) {
     client -> x = 0;
     client -> y = 0;
     client -> height = root.height;
-    client -> width = head == NULL ? root.width : root.width/2;
+    client -> width = head == NULL || head -> isfloating ? root.width : root.width/2;
 }
 
 void ewmh_set_current_desktop(unsigned int ws) {
@@ -160,10 +162,11 @@ void ewmh_set_current_desktop(unsigned int ws) {
     change_atom_property(net_atoms[NetCurrentDesktop], (unsigned char *)data);
 }
 
-void save_workspace(Client *focused, Client *head,unsigned int total_clients, unsigned int ws) {
-    workspaces[ws].focused = focused;
-    workspaces[ws].head = head;
-    workspaces[ws].total_clients = total_clients;
+void save_workspace() {
+    workspaces[current_ws].focused = focused;
+    workspaces[current_ws].head = head;
+    workspaces[current_ws].total_clients = total_clients;
+    workspaces[current_ws].floating_clients = floating_clients;
 }
 
 void switch_workspace(XEvent *event, char *command) {
@@ -171,7 +174,7 @@ void switch_workspace(XEvent *event, char *command) {
     unsigned int ws = (int)(command[0] - '0');
     if (ws == current_ws) return;
 
-    save_workspace(focused, head, total_clients, current_ws);
+    save_workspace();
 
     current_ws = ws;
     Client *client;
@@ -187,6 +190,7 @@ void switch_workspace(XEvent *event, char *command) {
     focused = workspaces[ws].focused;
     head = workspaces[ws].head;
     total_clients = workspaces[ws].total_clients;
+    floating_clients = workspaces[ws].floating_clients;
 
     if (focused != NULL) {
         client = focused;
@@ -355,13 +359,13 @@ void destroy_notify(XEvent *event) {
     } while (client != head);
 
     total_clients --;
-    focus(client -> prev);
+    focus(client -> next);
     if (!client -> isfloating) restack();
     else floating_clients --;
     free(client);
 }
 
-void kill(XEvent *event, char *command) {
+void kill_client(XEvent *event, char *command) {
     (void)command;
     (void)event;
     if (focused == NULL) return;
@@ -496,6 +500,12 @@ void loop(void) {
     }
 }
 
+int ignore(Display *display, XErrorEvent *event) {
+    (void)display;
+    (void)event;
+    return 0;
+}
+
 void start(void) {
     if (!(dpy = XOpenDisplay(NULL))) {
         fprintf(stderr, "Failed to establish a connection with the xserver\n");
@@ -503,6 +513,9 @@ void start(void) {
     }
     fprintf(stdout, "Connected to the xserver\n");
     running = true;
+
+    signal(SIGCHLD, SIG_IGN);
+    XSetErrorHandler(ignore); // prevent devoidwm from quitting
 
     // root window
     root.win = DefaultRootWindow(dpy);
@@ -523,9 +536,9 @@ void start(void) {
         workspaces[i].floating_clients = 0;
     }
 
-	net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
+    net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
     net_atoms[NetNumberOfDesktops] = XInternAtom(dpy, "_NET_NUMBER_OF_DESKTOPS", False);
-	net_atoms[NetCurrentDesktop] = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
+    net_atoms[NetCurrentDesktop] = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
     net_atoms[NetWMState] = XInternAtom(dpy, "_NET_WM_STATE", False);
     net_atoms[NetWMStateFullscreen] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
     net_atoms[NetWMStateAbove] = XInternAtom(dpy, "_NET_WM_STATE_ABOVE", False);
@@ -535,7 +548,7 @@ void start(void) {
     net_atoms[NetWMWindowTypeSplash] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_SPLASH", False);
     net_atoms[NetWMWindowTypeToolbar] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);
     net_atoms[NetWMWindowTypeUtility] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_UTILITY", False);
-	net_atoms[NetActiveWindow] = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", False);
+    net_atoms[NetActiveWindow] = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", False);
 
     change_atom_property(net_atoms[NetSupported], (unsigned char *)net_atoms);
     ewmh_set_current_desktop(0);
