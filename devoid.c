@@ -38,8 +38,8 @@ static void destroy_notify(XEvent *event);
 
 static void set_client_rules(Client *client);
 static void restack();
-static void configure_window(Client *client);
-static void configure_slave_windows(Client *first_slave, unsigned int slave_count);
+static void apply_window_properties(Client *client);
+static void configure_slave_windows(Client *first_slave, int slave_count);
 static void focus_adjacent(XEvent *event, char *command);
 static void focus(Client *client);
 static void quit(XEvent *event, char *command);
@@ -49,6 +49,8 @@ static void swap_with_neighbour(XEvent *event, char *command);
 static void zoom(XEvent *event, char *command);
 static Atom get_atom_prop(Window win, Atom atom);
 static void change_atom_property(Atom prop, unsigned char *data);
+static void configure_floating_window(Client *client);
+static void configure_non_floating_window(Client *client);
 
 // workspaces
 static void switch_workspace(XEvent *event, char *command);
@@ -57,7 +59,7 @@ static void ewmh_set_current_desktop(unsigned int ws);
 
 struct {
     Client *head, *focused;
-    unsigned int total_clients;
+    unsigned int total_clients, floating_clients;
 } workspaces[MAX_WORKSPACES];
 
 // EWMH atoms
@@ -79,7 +81,6 @@ enum {
 };
 
 static Atom net_atoms[NetLast];
-
 static bool running;
 static Display *dpy;
 static XButtonEvent prev_pointer_position;
@@ -91,7 +92,7 @@ struct root {
 } root;
 
 static Client *head, *focused;
-static unsigned int current_ws, total_clients;
+static unsigned int current_ws, total_clients, floating_clients;
 
 static const unsigned int MODKEY = Mod4Mask;
 typedef struct {
@@ -137,6 +138,21 @@ static void (*handle_events[LASTEvent])(XEvent *event) = {
     [MapRequest] = map,
     [DestroyNotify] = destroy_notify,
 };
+
+void configure_floating_window(Client *client) {
+    XGetWindowAttributes(dpy, client -> win, &attr);
+    client -> width = attr.width;
+    client -> height = attr.height;
+    client -> x = root.width/2 - client -> width/2;
+    client -> y = root.height/2 - client -> height/2;
+}
+
+void configure_non_floating_window(Client *client) {
+    client -> x = 0;
+    client -> y = 0;
+    client -> height = root.height;
+    client -> width = head == NULL ? root.width : root.width/2;
+}
 
 void ewmh_set_current_desktop(unsigned int ws) {
     unsigned long data[1];
@@ -223,11 +239,11 @@ Atom get_atom_prop(Window win, Atom atom) {
 }
 
 void set_client_rules(Client *client) {
+    client -> isfloating = false;
     XClassHint hint;
     XGetClassHint(dpy, client -> win, &hint);
-    client -> isfloating = false;
 
-    for (size_t i = 0; i < sizeof(rules)/ sizeof(Rules); i ++) {
+    for (size_t i = 0; i < sizeof(rules)/sizeof(Rules); i ++) {
         if (strcmp(hint.res_class, rules[i].class) == 0) {
             client -> isfloating = rules[i].isfloating;
             return;
@@ -271,8 +287,8 @@ void swap(Client *focused_client, Client *target_client) {
     focused_client -> win = target_client -> win;
     target_client -> win = temp;
 
-    configure_window(focused_client);
-    configure_window(target_client);
+    apply_window_properties(focused_client);
+    apply_window_properties(target_client);
     focus(target_client);
 }
 
@@ -285,39 +301,45 @@ void zoom(XEvent *event, char *command) {
     focus(head);
 }
 
-void configure_slave_windows(Client *first_slave, unsigned int slave_count) {
-    for (unsigned int i = 0; i < slave_count; i ++) {
-        first_slave -> x = root.width / 2;
-        first_slave -> y = (i * root.height) / slave_count;
-        first_slave -> width = root.width / 2;
-        first_slave -> height = root.height / slave_count;
-        configure_window(first_slave);
+void configure_slave_windows(Client *first_slave, int slave_count) {
+    for (int i = 0; i < slave_count; i ++) {
+        if (first_slave -> isfloating) i --;
+        else {
+            first_slave -> x = root.width / 2;
+            first_slave -> y = (i * root.height) / slave_count;
+            first_slave -> width = root.width / 2;
+            first_slave -> height = root.height / slave_count;
+            apply_window_properties(first_slave);
+        }
         first_slave = first_slave -> next;
     }
 }
 
 void restack() {
     if (head == NULL) return;
-    head -> x = 0;
-    head -> y = 0;
-    head -> height = root.height;
-    if (total_clients == 1) head -> width = root.width;
-    else {
-        head -> width = root.width / 2;
-        configure_slave_windows(head -> next, total_clients - 1);
+    Client *pseudohead = head;
+    while (pseudohead -> isfloating) {
+        pseudohead = pseudohead -> next;
+        if (pseudohead == NULL || pseudohead == head) return;
     }
-    configure_window(head);
+    pseudohead -> x = 0;
+    pseudohead -> y = 0;
+    pseudohead -> height = root.height;
+    if (total_clients - floating_clients == 1) pseudohead -> width = root.width;
+    else {
+        pseudohead -> width = root.width / 2;
+        configure_slave_windows(pseudohead -> next, total_clients - floating_clients - 1);
+    }
+    apply_window_properties(pseudohead);
 }
 
 void destroy_notify(XEvent *event) {
+    (void)event;
     Window destroyed_window = event -> xdestroywindow.window;
     Client *client = head;
-    bool isTiled = false;
 
     do {
-        if (client == NULL) break;
         if (client -> win == destroyed_window) {
-            isTiled = true;
             if (client == head) head = head -> next;
             if (client -> next == NULL) break;
             if (client -> next -> next == client) {
@@ -332,21 +354,11 @@ void destroy_notify(XEvent *event) {
         client = client -> next;
     } while (client != head);
 
-    if (!isTiled) {
-        if (client != NULL) free(focused);
-        focus(head);
-        return;
-    }
-
-    if (client == NULL) {
-        focused = NULL;
-        return;
-    };
-
-    focus(client -> prev);
-    free(client);
     total_clients --;
-    restack();
+    focus(client -> prev);
+    if (!client -> isfloating) restack();
+    else floating_clients --;
+    free(client);
 }
 
 void kill(XEvent *event, char *command) {
@@ -359,9 +371,7 @@ void kill(XEvent *event, char *command) {
 
 void focus_adjacent(XEvent *event, char *command) {
     (void)event;
-    if (focused == NULL || focused -> next == NULL || focused -> isfloating)
-        return;
-
+    if (focused == NULL || focused -> next == NULL) return;
     focused = (command[0] == 'n') ? focused -> next : focused -> prev;
     focus(focused);
 }
@@ -372,7 +382,7 @@ void quit(XEvent *event, char *command) {
     running = false;
 }
 
-void configure_window(Client *client) {
+void apply_window_properties(Client *client) {
     XWindowChanges changes = {
         .x = client -> x,
         .y = client -> y,
@@ -388,29 +398,17 @@ void map(XEvent *event) {
     XMapWindow(dpy, new_client -> win);
     XSelectInput(dpy, new_client -> win, StructureNotifyMask);
     focus(new_client);
-
     set_client_rules(new_client);
+
     if (new_client -> isfloating) {
-        XGetWindowAttributes(dpy, new_client -> win, &attr);
-        new_client -> width = attr.width;
-        new_client -> height = attr.height;
-        new_client -> x = root.width/2 - new_client -> width/2;
-        new_client -> y = root.height/2 - new_client -> height/2;
-        configure_window(new_client);
-        return;
-    };
+        configure_floating_window(new_client);
+        floating_clients ++;
+    } else configure_non_floating_window(new_client);
 
-    new_client -> x = 0;
-    new_client -> y = 0;
-    new_client -> height = root.height;
     new_client -> next = head;
-
-    if (head == NULL) {
-        new_client -> prev = NULL;
-        new_client -> width = root.width;
-    } else {
-        configure_slave_windows(head, total_clients);
-        new_client -> width = root.width / 2;
+    if (head == NULL) new_client -> prev = NULL;
+    else {
+        if (!new_client -> isfloating) configure_slave_windows(head, total_clients - floating_clients);
         if (head -> prev == NULL) {
             new_client -> prev = head;
             head -> next = new_client;
@@ -424,7 +422,7 @@ void map(XEvent *event) {
 
     head = new_client;
     total_clients ++;
-    configure_window(new_client);
+    apply_window_properties(new_client);
 }
 
 void buttonpress(XEvent *event) {
@@ -516,12 +514,13 @@ void start(void) {
 	XDefineCursor(dpy, root.win, XCreateFontCursor(dpy, 68));
 
     head = focused = NULL;
-    current_ws = total_clients = 0;
+    current_ws = total_clients = floating_clients = 0;
 
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
         workspaces[i].head = NULL;
-        workspaces[i].focused= NULL;
+        workspaces[i].focused = NULL;
         workspaces[i].total_clients = 0;
+        workspaces[i].floating_clients = 0;
     }
 
 	net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
