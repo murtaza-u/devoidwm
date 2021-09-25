@@ -1,8 +1,7 @@
-#include <signal.h>
-#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <string.h>
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
@@ -46,7 +45,7 @@ static void focus_adjacent(XEvent *event, char *command);
 static void focus(Client *client);
 static void quit(XEvent *event, char *command);
 static void kill_client(XEvent *event, char *command);
-static bool send_event(Client *client);
+static bool send_event(Client *client, Atom proto);
 static void swap(Client *focused_client, Client *target_client);
 static void swap_with_neighbour(XEvent *event, char *command);
 static void zoom(XEvent *event, char *command);
@@ -373,26 +372,25 @@ void destroy_notify(XEvent *event) {
 }
 
 
-bool send_event(Client *client) {
+bool send_event(Client *client, Atom proto) {
     int n;
     Atom *protocols;
     bool exists = false;
-    XEvent ev;
+    XEvent event;
 
     if (XGetWMProtocols(dpy, client -> win, &protocols, &n)) {
-        while (!exists && n--) exists = protocols[n] == wm_atoms[WMDeleteWindow];
+        while (!exists && n --) exists = protocols[n] == proto;
         XFree(protocols);
     }
 
     if (exists) {
-        XEvent event;
         event.type = ClientMessage;
         event.xclient.window = client -> win;
         event.xclient.message_type = wm_atoms[WMProtocols];
         event.xclient.format = 32;
         event.xclient.data.l[0] = wm_atoms[WMDeleteWindow];
         event.xclient.data.l[1] = CurrentTime;
-        XSendEvent(dpy, client -> win, False, NoEventMask, &event);
+        XSendEvent(dpy, client -> win, False, StructureNotifyMask, &event);
     }
 
     return exists;
@@ -402,7 +400,7 @@ void kill_client(XEvent *event, char *command) {
     (void)command;
     (void)event;
     if (focused == NULL) return;
-    if (!send_event(focused)) {
+    if (!send_event(focused, wm_atoms[WMDeleteWindow])) {
         XGrabServer(dpy);
         XSetCloseDownMode(dpy, DestroyAll);
         XKillClient(dpy, focused -> win);
@@ -436,6 +434,8 @@ void apply_window_properties(Client *client) {
 
 void map(XEvent *event) {
     Client *new_client = (Client *)malloc(sizeof(Client));
+    if (new_client == NULL) return;
+
     new_client -> win = event -> xmaprequest.window;
     XMapWindow(dpy, new_client -> win);
     XSelectInput(dpy, new_client -> win, StructureNotifyMask);
@@ -543,15 +543,15 @@ int ignore() {
 }
 
 void start(void) {
+    signal(SIGCHLD, SIG_IGN); // destroy zombie processes
+    XSetErrorHandler(ignore); // prevent devoidwm from quitting
+
     if (!(dpy = XOpenDisplay(NULL))) {
         fprintf(stderr, "Failed to establish a connection with the xserver\n");
         exit(EXIT_FAILURE);
     }
     fprintf(stdout, "Connected to the xserver\n");
     running = true;
-
-    signal(SIGCHLD, SIG_IGN);
-    XSetErrorHandler(ignore); // prevent devoidwm from quitting
 
     // root window
     root.win = DefaultRootWindow(dpy);
