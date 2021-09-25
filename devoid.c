@@ -17,39 +17,50 @@
 
 typedef struct Client Client;
 struct Client {
-    unsigned int x, y, old_x, old_y;
-    unsigned int width, height, old_width, old_height;
+    unsigned int x, y, old_x, old_y, width, height, old_width, old_height;
     Window win;
-    Client *next;
-    Client *prev;
+    Client *next, *prev;
     bool isfloating, isfullscreen;
 };
 
 static void start(void);
 static void stop(void);
 static void loop(void);
-static void getInput(void);
-static void handleKeyPress(XEvent *event);
-static void handleButtonPress(XEvent *event);
-static void handlePointerMotion(XEvent *event);
-static void handleButtonRelease(XEvent *event);
-static void map(XEvent *event);
-static void configureWindow(Client *client);
-static void quit(XEvent *event, char *command);
-static void focusAdjacent(XEvent *event, char *command);
-static void kill(XEvent *event, char *command);
-static void destroyNotify(XEvent *event);
-static void restack();
-static void configureSlaveWindows(Client *firstSlave, unsigned int slaveCount);
-static void zoom(XEvent *event, char *command);
-static void swap(Client *focusedClient, Client *targetClient);
-static void swapWithNeighbour(XEvent *event, char *command);
-static void focus(Client *client);
-static void setClientRules(Client *client);
-static void switchWorkspace(XEvent *event, char *command);
-static void saveWorkspace(Client *focused, Client *head, unsigned int totalClients, unsigned int ws);
-static void EwmhSetCurrentDesktop(unsigned int ws);
+static void grab(void);
 
+// events
+static void keypress(XEvent *event);
+static void buttonpress(XEvent *event);
+static void pointermotion(XEvent *event);
+static void buttonrelease(XEvent *event);
+static void map(XEvent *event);
+static void destroy_notify(XEvent *event);
+
+static void set_client_rules(Client *client);
+static void restack();
+static void configure_window(Client *client);
+static void configure_slave_windows(Client *first_slave, unsigned int slave_count);
+static void focus_adjacent(XEvent *event, char *command);
+static void focus(Client *client);
+static void quit(XEvent *event, char *command);
+static void kill(XEvent *event, char *command);
+static void swap(Client *focused_client, Client *target_client);
+static void swap_with_neighbour(XEvent *event, char *command);
+static void zoom(XEvent *event, char *command);
+static Atom get_atom_prop(Window win, Atom atom);
+static void change_atom_property(Atom prop, unsigned char *data);
+
+// workspaces
+static void switch_workspace(XEvent *event, char *command);
+static void save_workspace(Client *focused, Client *head, unsigned int total_clients, unsigned int ws);
+static void ewmh_set_current_desktop(unsigned int ws);
+
+struct {
+    Client *head, *focused;
+    unsigned int total_clients;
+} workspaces[MAX_WORKSPACES];
+
+// EWMH atoms
 enum {
     NetSupported,
     NetCurrentDesktop,
@@ -63,6 +74,7 @@ enum {
     NetWMState,
     NetWMStateFullscreen,
     NetWMStateAbove,
+    NetActiveWindow,
     NetLast
 };
 
@@ -70,30 +82,18 @@ static Atom net_atoms[NetLast];
 
 static bool running;
 static Display *dpy;
-static XButtonEvent prevPointerPosition;
+static XButtonEvent prev_pointer_position;
 static XWindowAttributes attr;
 
 struct root {
     Window win;
-    int width;
-    int height;
+    int width, height;
 } root;
 
-static Client *head = NULL;
-static Client *focused = NULL;
-static unsigned int currentWorkspace = 0;
-static unsigned int totalClients = 0;
-
-struct workspace {
-    Client *head;
-    Client *focused;
-    unsigned int totalClients;
-};
-
-static struct workspace workspaces[MAX_WORKSPACES];
+static Client *head, *focused;
+static unsigned int current_ws, total_clients;
 
 static const unsigned int MODKEY = Mod4Mask;
-
 typedef struct {
     unsigned int modifier;
     KeySym keysym;
@@ -103,21 +103,21 @@ typedef struct {
 
 static const key keys[] = {
     {MODKEY|ShiftMask, XK_q, quit, NULL},
-    {MODKEY, XK_j, focusAdjacent, "next"},
-    {MODKEY, XK_k, focusAdjacent, "prev"},
+    {MODKEY, XK_j, focus_adjacent, "next"},
+    {MODKEY, XK_k, focus_adjacent, "prev"},
     {MODKEY, XK_x, kill, NULL},
     {MODKEY, XK_space, zoom, NULL},
-    {MODKEY|ShiftMask, XK_j, swapWithNeighbour, "next"},
-    {MODKEY|ShiftMask, XK_k, swapWithNeighbour, "prev"},
-    {MODKEY, XK_1, switchWorkspace, "0"},
-    {MODKEY, XK_2, switchWorkspace, "1"},
-    {MODKEY, XK_3, switchWorkspace, "2"},
-    {MODKEY, XK_4, switchWorkspace, "3"},
-    {MODKEY, XK_5, switchWorkspace, "4"},
-    {MODKEY, XK_6, switchWorkspace, "5"},
-    {MODKEY, XK_7, switchWorkspace, "6"},
-    {MODKEY, XK_8, switchWorkspace, "7"},
-    {MODKEY, XK_9, switchWorkspace, "8"},
+    {MODKEY|ShiftMask, XK_j, swap_with_neighbour, "next"},
+    {MODKEY|ShiftMask, XK_k, swap_with_neighbour, "prev"},
+    {MODKEY, XK_1, switch_workspace, "0"},
+    {MODKEY, XK_2, switch_workspace, "1"},
+    {MODKEY, XK_3, switch_workspace, "2"},
+    {MODKEY, XK_4, switch_workspace, "3"},
+    {MODKEY, XK_5, switch_workspace, "4"},
+    {MODKEY, XK_6, switch_workspace, "5"},
+    {MODKEY, XK_7, switch_workspace, "6"},
+    {MODKEY, XK_8, switch_workspace, "7"},
+    {MODKEY, XK_9, switch_workspace, "8"},
 };
 
 typedef struct Rules {
@@ -129,35 +129,35 @@ static const Rules rules[] = {
     {"Gcolor3", true},
 };
 
-static void (*handleEvents[LASTEvent])(XEvent *event) = {
-    [KeyPress] = handleKeyPress,
-    [ButtonPress] = handleButtonPress,
-    [ButtonRelease] = handleButtonRelease,
-    [MotionNotify] = handlePointerMotion,
+static void (*handle_events[LASTEvent])(XEvent *event) = {
+    [KeyPress] = keypress,
+    [ButtonPress] = buttonpress,
+    [ButtonRelease] = buttonrelease,
+    [MotionNotify] = pointermotion,
     [MapRequest] = map,
-    [DestroyNotify] = destroyNotify,
+    [DestroyNotify] = destroy_notify,
 };
 
-void EwmhSetCurrentDesktop(unsigned int ws) {
+void ewmh_set_current_desktop(unsigned int ws) {
     unsigned long data[1];
     data[0] = ws + 1;
-    XChangeProperty(dpy, root.win, net_atoms[NetCurrentDesktop], XA_CARDINAL, 32, PropModeReplace, (unsigned char *)data, 1);
+    change_atom_property(net_atoms[NetCurrentDesktop], (unsigned char *)data);
 }
 
-void saveWorkspace(Client *focused, Client *head,unsigned int totalClients, unsigned int ws) {
+void save_workspace(Client *focused, Client *head,unsigned int total_clients, unsigned int ws) {
     workspaces[ws].focused = focused;
     workspaces[ws].head = head;
-    workspaces[ws].totalClients = totalClients;
+    workspaces[ws].total_clients = total_clients;
 }
 
-void switchWorkspace(XEvent *event, char *command) {
+void switch_workspace(XEvent *event, char *command) {
     (void)event;
     unsigned int ws = (int)(command[0] - '0');
-    if (ws == currentWorkspace) return;
+    if (ws == current_ws) return;
 
-    saveWorkspace(focused, head, totalClients, currentWorkspace);
+    save_workspace(focused, head, total_clients, current_ws);
 
-    currentWorkspace = ws;
+    current_ws = ws;
     Client *client;
 
     if (focused != NULL) {
@@ -170,7 +170,7 @@ void switchWorkspace(XEvent *event, char *command) {
 
     focused = workspaces[ws].focused;
     head = workspaces[ws].head;
-    totalClients = workspaces[ws].totalClients;
+    total_clients = workspaces[ws].total_clients;
 
     if (focused != NULL) {
         client = focused;
@@ -180,12 +180,52 @@ void switchWorkspace(XEvent *event, char *command) {
         } while (client != NULL && client != focused);
     }
     focus(focused);
-    EwmhSetCurrentDesktop(ws);
+    ewmh_set_current_desktop(ws);
 }
 
-void setClientRules(Client *client) {
+void change_atom_property(Atom prop, unsigned char *data) {
+    XChangeProperty(
+        dpy,
+        root.win,
+        prop,
+        XA_CARDINAL,
+        32,
+        PropModeReplace,
+        data,
+        1
+    );
+}
+
+Atom get_atom_prop(Window win, Atom atom) {
+    Atom prop, da;
+    unsigned char *prop_ret = NULL;
+    int di;
+    unsigned long dl;
+    if (XGetWindowProperty(
+            dpy,
+            win,
+            atom,
+            0,
+            1,
+            False,
+            XA_ATOM,
+            &da,
+            &di,
+            &dl,
+            &dl,
+            &prop_ret) == Success) {
+        if (prop_ret) {
+            prop = ((Atom *)prop_ret)[0];
+            XFree(prop_ret);
+        }
+    }
+    return prop;
+}
+
+void set_client_rules(Client *client) {
     XClassHint hint;
     XGetClassHint(dpy, client -> win, &hint);
+    client -> isfloating = false;
 
     for (size_t i = 0; i < sizeof(rules)/ sizeof(Rules); i ++) {
         if (strcmp(hint.res_class, rules[i].class) == 0) {
@@ -194,36 +234,20 @@ void setClientRules(Client *client) {
         };
     }
 
-    Atom prop, da;
-    unsigned char *prop_ret = NULL;
-    int di;
-    unsigned long dl;
-    client -> isfloating = false;
-
-    if (XGetWindowProperty(dpy, client -> win, net_atoms[NetWMWindowType], 0, 1, False, XA_ATOM, &da, &di, &dl, &dl, &prop_ret) == Success) {
-        if (prop_ret) {
-            prop = ((Atom *)prop_ret)[0];
-            if (prop == net_atoms[NetWMWindowTypeDialog] ||
-                    prop == net_atoms[NetWMWindowTypeMenu] ||
-                    prop == net_atoms[NetWMWindowTypeSplash] ||
-                    prop == net_atoms[NetWMWindowTypeToolbar] ||
-                    prop == net_atoms[NetWMWindowTypeUtility]) {
-                client -> isfloating = true;
-                XFree(prop_ret);
-                return;
-            }
-            XFree(prop_ret);
-        }
+    Atom prop = get_atom_prop(client -> win, net_atoms[NetWMWindowType]);
+    if (prop == net_atoms[NetWMWindowTypeDialog] ||
+            prop == net_atoms[NetWMWindowTypeMenu] ||
+            prop == net_atoms[NetWMWindowTypeSplash] ||
+            prop == net_atoms[NetWMWindowTypeToolbar] ||
+            prop == net_atoms[NetWMWindowTypeUtility]) {
+        client -> isfloating = true;
+        return;
     }
 
-    if (XGetWindowProperty(dpy, client -> win, net_atoms[NetWMState], 0, 1, False, XA_ATOM, &da, &di, &dl, &dl, &prop_ret) == Success) {
-        if (prop_ret) {
-            prop = ((Atom *)prop_ret)[0];
-            if (prop == net_atoms[NetWMStateAbove]) {
-                client -> isfloating = true;
-            }
-            XFree(prop_ret);
-        }
+    prop = get_atom_prop(client -> win, net_atoms[NetWMState]);
+    if (prop == net_atoms[NetWMStateAbove]) {
+        client -> isfloating = true;
+        return;
     }
 }
 
@@ -232,23 +256,24 @@ void focus(Client *client) {
     if (focused == NULL) return;
     XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
     XRaiseWindow(dpy, focused -> win);
+    change_atom_property(net_atoms[NetActiveWindow], (unsigned char *)&(client -> win));
 }
 
-void swapWithNeighbour(XEvent *event, char *command) {
+void swap_with_neighbour(XEvent *event, char *command) {
     (void)event;
     if (focused == NULL || focused -> next == NULL || focused -> isfloating)
         return;
     swap(focused, command[0] == 'n' ? focused -> next : focused -> prev);
 }
 
-void swap(Client *focusedClient, Client *targetClient) {
-    Window temp = focusedClient -> win;
-    focusedClient -> win = targetClient -> win;
-    targetClient -> win = temp;
+void swap(Client *focused_client, Client *target_client) {
+    Window temp = focused_client -> win;
+    focused_client -> win = target_client -> win;
+    target_client -> win = temp;
 
-    configureWindow(focusedClient);
-    configureWindow(targetClient);
-    focus(targetClient);
+    configure_window(focused_client);
+    configure_window(target_client);
+    focus(target_client);
 }
 
 void zoom(XEvent *event, char *command) {
@@ -260,14 +285,14 @@ void zoom(XEvent *event, char *command) {
     focus(head);
 }
 
-void configureSlaveWindows(Client *firstSlave, unsigned int slaveCount) {
-    for (unsigned int i = 0; i < slaveCount; i ++) {
-        firstSlave -> x = root.width / 2;
-        firstSlave -> y = (i * root.height) / slaveCount;
-        firstSlave -> width = root.width / 2;
-        firstSlave -> height = root.height / slaveCount;
-        configureWindow(firstSlave);
-        firstSlave = firstSlave -> next;
+void configure_slave_windows(Client *first_slave, unsigned int slave_count) {
+    for (unsigned int i = 0; i < slave_count; i ++) {
+        first_slave -> x = root.width / 2;
+        first_slave -> y = (i * root.height) / slave_count;
+        first_slave -> width = root.width / 2;
+        first_slave -> height = root.height / slave_count;
+        configure_window(first_slave);
+        first_slave = first_slave -> next;
     }
 }
 
@@ -276,38 +301,36 @@ void restack() {
     head -> x = 0;
     head -> y = 0;
     head -> height = root.height;
-    if (totalClients == 1) head -> width = root.width;
+    if (total_clients == 1) head -> width = root.width;
     else {
         head -> width = root.width / 2;
-        configureSlaveWindows(head -> next, totalClients - 1);
+        configure_slave_windows(head -> next, total_clients - 1);
     }
-    configureWindow(head);
+    configure_window(head);
 }
 
-void destroyNotify(XEvent *event) {
-    Window destroyedWindow = event -> xdestroywindow.window;
+void destroy_notify(XEvent *event) {
+    Window destroyed_window = event -> xdestroywindow.window;
     Client *client = head;
     bool isTiled = false;
 
-    // TODO: refactor this mess
-    if (client != NULL) {
-        do {
-            if (client -> win == destroyedWindow) {
-                isTiled = true;
-                if (client == head) head = head -> next;
-                if (client -> next == NULL) break;
-                if (client -> next -> next == client) {
-                    client -> next -> next = NULL;
-                    client -> next -> prev = NULL;
-                } else {
-                    client -> prev -> next = client -> next;
-                    client -> next -> prev = client -> prev;
-                }
-                break;
+    do {
+        if (client == NULL) break;
+        if (client -> win == destroyed_window) {
+            isTiled = true;
+            if (client == head) head = head -> next;
+            if (client -> next == NULL) break;
+            if (client -> next -> next == client) {
+                client -> next -> next = NULL;
+                client -> next -> prev = NULL;
+            } else {
+                client -> prev -> next = client -> next;
+                client -> next -> prev = client -> prev;
             }
-            client = client -> next;
-        } while (client != NULL && client != head);
-    }
+            break;
+        }
+        client = client -> next;
+    } while (client != head);
 
     if (!isTiled) {
         if (client != NULL) free(focused);
@@ -320,15 +343,9 @@ void destroyNotify(XEvent *event) {
         return;
     };
 
-    if (client == head) {
-        free(focused);
-        focus(head);
-        return;
-    }
-
     focus(client -> prev);
     free(client);
-    totalClients --;
+    total_clients --;
     restack();
 }
 
@@ -339,7 +356,7 @@ void kill(XEvent *event, char *command) {
     XKillClient(dpy, focused -> win);
 }
 
-void focusAdjacent(XEvent *event, char *command) {
+void focus_adjacent(XEvent *event, char *command) {
     (void)event;
     if (focused == NULL || focused -> next == NULL || focused -> isfloating)
         return;
@@ -354,7 +371,7 @@ void quit(XEvent *event, char *command) {
     running = false;
 }
 
-void configureWindow(Client *client) {
+void configure_window(Client *client) {
     XWindowChanges changes = {
         .x = client -> x,
         .y = client -> y,
@@ -365,51 +382,51 @@ void configureWindow(Client *client) {
 }
 
 void map(XEvent *event) {
-    Client *newClient = (Client *)malloc(sizeof(Client));
-    newClient -> win = event -> xmaprequest.window;
-    XMapWindow(dpy, newClient -> win);
-    XSelectInput(dpy, newClient -> win, StructureNotifyMask);
-    focus(newClient);
+    Client *new_client = (Client *)malloc(sizeof(Client));
+    new_client -> win = event -> xmaprequest.window;
+    XMapWindow(dpy, new_client -> win);
+    XSelectInput(dpy, new_client -> win, StructureNotifyMask);
+    focus(new_client);
 
-    setClientRules(newClient);
-    if (newClient -> isfloating) {
-        XGetWindowAttributes(dpy, newClient -> win, &attr);
-        newClient -> width = attr.width;
-        newClient -> height = attr.height;
-        newClient -> x = root.width/2 - newClient -> width/2;
-        newClient -> y = root.height/2 - newClient -> height/2;
-        configureWindow(newClient);
+    set_client_rules(new_client);
+    if (new_client -> isfloating) {
+        XGetWindowAttributes(dpy, new_client -> win, &attr);
+        new_client -> width = attr.width;
+        new_client -> height = attr.height;
+        new_client -> x = root.width/2 - new_client -> width/2;
+        new_client -> y = root.height/2 - new_client -> height/2;
+        configure_window(new_client);
         return;
     };
 
-    newClient -> x = 0;
-    newClient -> y = 0;
-    newClient -> height = root.height;
-    newClient -> next = head;
+    new_client -> x = 0;
+    new_client -> y = 0;
+    new_client -> height = root.height;
+    new_client -> next = head;
 
     if (head == NULL) {
-        newClient -> prev = NULL;
-        newClient -> width = root.width;
+        new_client -> prev = NULL;
+        new_client -> width = root.width;
     } else {
-        configureSlaveWindows(head, totalClients);
-        newClient -> width = root.width / 2;
+        configure_slave_windows(head, total_clients);
+        new_client -> width = root.width / 2;
         if (head -> prev == NULL) {
-            newClient -> prev = head;
-            head -> next = newClient;
-            head -> prev = newClient;
+            new_client -> prev = head;
+            head -> next = new_client;
+            head -> prev = new_client;
         } else {
-            newClient -> prev = head -> prev;
-            head -> prev -> next = newClient;
-            head -> prev = newClient;
+            new_client -> prev = head -> prev;
+            head -> prev -> next = new_client;
+            head -> prev = new_client;
         }
     }
 
-    head = newClient;
-    totalClients ++;
-    configureWindow(newClient);
+    head = new_client;
+    total_clients ++;
+    configure_window(new_client);
 }
 
-void handleButtonPress(XEvent *event) {
+void buttonpress(XEvent *event) {
     if(event -> xbutton.subwindow == None) return;
     XGrabPointer(
         dpy,
@@ -423,14 +440,14 @@ void handleButtonPress(XEvent *event) {
         CurrentTime
     );
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
-    prevPointerPosition = event -> xbutton;
+    prev_pointer_position = event -> xbutton;
 }
 
-void handlePointerMotion(XEvent *event) {
+void pointermotion(XEvent *event) {
     while(XCheckTypedEvent(dpy, MotionNotify, event));
-    int dx = event -> xbutton.x_root - prevPointerPosition.x_root;
-    int dy = event -> xbutton.y_root - prevPointerPosition.y_root;
-    bool isLeftClick = prevPointerPosition.button == 1;
+    int dx = event -> xbutton.x_root - prev_pointer_position.x_root;
+    int dy = event -> xbutton.y_root - prev_pointer_position.y_root;
+    bool isLeftClick = prev_pointer_position.button == 1;
     XMoveResizeWindow(
         dpy,
         event -> xmotion.window,
@@ -441,12 +458,12 @@ void handlePointerMotion(XEvent *event) {
     );
 }
 
-void handleButtonRelease(XEvent *event) {
+void buttonrelease(XEvent *event) {
     (void)event;
     XUngrabPointer(dpy, CurrentTime);
 }
 
-void handleKeyPress(XEvent *event) {
+void keypress(XEvent *event) {
     for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
         KeySym keysym = XkbKeycodeToKeysym(dpy, event -> xkey.keycode, 0, 0);
         if (keysym == keys[i].keysym
@@ -455,7 +472,7 @@ void handleKeyPress(XEvent *event) {
     }
 }
 
-void getInput(void) {
+void grab(void) {
     for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++)
         XGrabKey(
             dpy,
@@ -475,8 +492,8 @@ void loop(void) {
     XEvent event;
     while (running) {
         XNextEvent(dpy, &event); // blocking -> waits for next event to occur
-        if (handleEvents[event.type])
-            handleEvents[event.type](&event);
+        if (handle_events[event.type])
+            handle_events[event.type](&event);
     }
 }
 
@@ -497,10 +514,13 @@ void start(void) {
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
 	XDefineCursor(dpy, root.win, XCreateFontCursor(dpy, 68));
 
+    head = focused = NULL;
+    current_ws = total_clients = 0;
+
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
         workspaces[i].head = NULL;
         workspaces[i].focused= NULL;
-        workspaces[i].totalClients = 0;
+        workspaces[i].total_clients = 0;
     }
 
 	net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
@@ -515,13 +535,14 @@ void start(void) {
     net_atoms[NetWMWindowTypeSplash] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_SPLASH", False);
     net_atoms[NetWMWindowTypeToolbar] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);
     net_atoms[NetWMWindowTypeUtility] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_UTILITY", False);
+	net_atoms[NetActiveWindow] = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", False);
 
-    XChangeProperty(dpy, root.win, net_atoms[NetSupported], XA_ATOM, 32, PropModeReplace, (unsigned char *)net_atoms, NetLast);
-    EwmhSetCurrentDesktop(0);
+    change_atom_property(net_atoms[NetSupported], (unsigned char *)net_atoms);
+    ewmh_set_current_desktop(0);
 
     unsigned long data[1];
     data[0] = MAX_WORKSPACES;
-    XChangeProperty(dpy, root.win, net_atoms[NetNumberOfDesktops], XA_CARDINAL, 32, PropModeReplace, (unsigned char *)data, 1);
+    change_atom_property(net_atoms[NetNumberOfDesktops], (unsigned char*)data);
 }
 
 void stop(void) {
@@ -531,7 +552,7 @@ void stop(void) {
 
 int main(void) {
     start();
-    getInput();
+    grab();
     loop();
     stop();
     return 0;
