@@ -352,6 +352,7 @@ void destroy_notify(XEvent *event) {
 void kill(XEvent *event, char *command) {
     (void)command;
     (void)event;
+    if (focused == NULL) return;
     XSetCloseDownMode(dpy, DestroyAll);
     XKillClient(dpy, focused -> win);
 }
