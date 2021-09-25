@@ -50,7 +50,21 @@ static void switchWorkspace(XEvent *event, char *command);
 static void saveWorkspace(Client *focused, Client *head, unsigned int totalClients, unsigned int ws);
 static void EwmhSetCurrentDesktop(unsigned int ws);
 
-enum { NetSupported, NetCurrentDesktop, NetNumberOfDesktops, NetLast };
+enum {
+    NetSupported,
+    NetCurrentDesktop,
+    NetNumberOfDesktops,
+    NetWMWindowType,
+    NetWMWindowTypeDialog,
+    NetWMWindowTypeMenu,
+    NetWMWindowTypeSplash,
+    NetWMWindowTypeToolbar,
+    NetWMWindowTypeUtility,
+    NetWMState,
+    NetWMStateFullscreen,
+    NetWMStateAbove,
+    NetLast
+};
 
 static Atom net_atoms[NetLast];
 
@@ -112,7 +126,7 @@ typedef struct Rules {
 } Rules;
 
 static const Rules rules[] = {
-    {"Pinentry-gtk-2", true},
+    {"Gcolor3", true},
 };
 
 static void (*handleEvents[LASTEvent])(XEvent *event) = {
@@ -170,16 +184,46 @@ void switchWorkspace(XEvent *event, char *command) {
 }
 
 void setClientRules(Client *client) {
-    client -> isfloating = false;
-
     XClassHint hint;
     XGetClassHint(dpy, client -> win, &hint);
 
     for (size_t i = 0; i < sizeof(rules)/ sizeof(Rules); i ++) {
         if (strcmp(hint.res_class, rules[i].class) == 0) {
             client -> isfloating = rules[i].isfloating;
-            break;
+            return;
         };
+    }
+
+    Atom prop, da;
+    unsigned char *prop_ret = NULL;
+    int di;
+    unsigned long dl;
+    client -> isfloating = false;
+
+    if (XGetWindowProperty(dpy, client -> win, net_atoms[NetWMWindowType], 0, 1, False, XA_ATOM, &da, &di, &dl, &dl, &prop_ret) == Success) {
+        if (prop_ret) {
+            prop = ((Atom *)prop_ret)[0];
+            if (prop == net_atoms[NetWMWindowTypeDialog] ||
+                    prop == net_atoms[NetWMWindowTypeMenu] ||
+                    prop == net_atoms[NetWMWindowTypeSplash] ||
+                    prop == net_atoms[NetWMWindowTypeToolbar] ||
+                    prop == net_atoms[NetWMWindowTypeUtility]) {
+                client -> isfloating = true;
+                XFree(prop_ret);
+                return;
+            }
+            XFree(prop_ret);
+        }
+    }
+
+    if (XGetWindowProperty(dpy, client -> win, net_atoms[NetWMState], 0, 1, False, XA_ATOM, &da, &di, &dl, &dl, &prop_ret) == Success) {
+        if (prop_ret) {
+            prop = ((Atom *)prop_ret)[0];
+            if (prop == net_atoms[NetWMStateAbove]) {
+                client -> isfloating = true;
+            }
+            XFree(prop_ret);
+        }
     }
 }
 
@@ -243,22 +287,33 @@ void restack() {
 void destroyNotify(XEvent *event) {
     Window destroyedWindow = event -> xdestroywindow.window;
     Client *client = head;
+    bool isTiled = false;
 
-    do {
-        if (client -> win == destroyedWindow) {
-            if (client == head) head = head -> next;
-            if (client -> next == NULL) break;
-            if (client -> next -> next == client) {
-                client -> next -> next = NULL;
-                client -> next -> prev = NULL;
-            } else {
-                client -> prev -> next = client -> next;
-                client -> next -> prev = client -> prev;
+    // TODO: refactor this mess
+    if (client != NULL) {
+        do {
+            if (client -> win == destroyedWindow) {
+                isTiled = true;
+                if (client == head) head = head -> next;
+                if (client -> next == NULL) break;
+                if (client -> next -> next == client) {
+                    client -> next -> next = NULL;
+                    client -> next -> prev = NULL;
+                } else {
+                    client -> prev -> next = client -> next;
+                    client -> next -> prev = client -> prev;
+                }
+                break;
             }
-            break;
-        }
-        client = client -> next;
-    } while (client != NULL && client != head);
+            client = client -> next;
+        } while (client != NULL && client != head);
+    }
+
+    if (!isTiled) {
+        if (client != NULL) free(focused);
+        focus(head);
+        return;
+    }
 
     if (client == NULL) {
         focused = NULL;
@@ -451,6 +506,15 @@ void start(void) {
 	net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
     net_atoms[NetNumberOfDesktops] = XInternAtom(dpy, "_NET_NUMBER_OF_DESKTOPS", False);
 	net_atoms[NetCurrentDesktop] = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
+    net_atoms[NetWMState] = XInternAtom(dpy, "_NET_WM_STATE", False);
+    net_atoms[NetWMStateFullscreen] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
+    net_atoms[NetWMStateAbove] = XInternAtom(dpy, "_NET_WM_STATE_ABOVE", False);
+    net_atoms[NetWMWindowType] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
+    net_atoms[NetWMWindowTypeDialog] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
+    net_atoms[NetWMWindowTypeMenu] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_MENU", False);
+    net_atoms[NetWMWindowTypeSplash] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_SPLASH", False);
+    net_atoms[NetWMWindowTypeToolbar] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);
+    net_atoms[NetWMWindowTypeUtility] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_UTILITY", False);
 
     XChangeProperty(dpy, root.win, net_atoms[NetSupported], XA_ATOM, 32, PropModeReplace, (unsigned char *)net_atoms, NetLast);
     EwmhSetCurrentDesktop(0);
@@ -458,7 +522,6 @@ void start(void) {
     unsigned long data[1];
     data[0] = MAX_WORKSPACES;
     XChangeProperty(dpy, root.win, net_atoms[NetNumberOfDesktops], XA_CARDINAL, 32, PropModeReplace, (unsigned char *)data, 1);
-
 }
 
 void stop(void) {
