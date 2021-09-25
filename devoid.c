@@ -28,7 +28,7 @@ static void start(void);
 static void stop(void);
 static void loop(void);
 static void grab(void);
-static int ignore(Display *display, XErrorEvent *event);
+static int ignore();
 
 // events
 static void keypress(XEvent *event);
@@ -46,6 +46,7 @@ static void focus_adjacent(XEvent *event, char *command);
 static void focus(Client *client);
 static void quit(XEvent *event, char *command);
 static void kill_client(XEvent *event, char *command);
+static bool send_event(Client *client);
 static void swap(Client *focused_client, Client *target_client);
 static void swap_with_neighbour(XEvent *event, char *command);
 static void zoom(XEvent *event, char *command);
@@ -82,7 +83,13 @@ enum {
     NetLast
 };
 
-static Atom net_atoms[NetLast];
+enum {
+    WMDeleteWindow,
+    WMProtocols,
+    WMLast,
+};
+
+static Atom net_atoms[NetLast], wm_atoms[WMLast];
 static bool running;
 static Display *dpy;
 static XButtonEvent prev_pointer_position;
@@ -365,12 +372,43 @@ void destroy_notify(XEvent *event) {
     free(client);
 }
 
+
+bool send_event(Client *client) {
+    int n;
+    Atom *protocols;
+    bool exists = false;
+    XEvent ev;
+
+    if (XGetWMProtocols(dpy, client -> win, &protocols, &n)) {
+        while (!exists && n--) exists = protocols[n] == wm_atoms[WMDeleteWindow];
+        XFree(protocols);
+    }
+
+    if (exists) {
+        XEvent event;
+        event.type = ClientMessage;
+        event.xclient.window = client -> win;
+        event.xclient.message_type = wm_atoms[WMProtocols];
+        event.xclient.format = 32;
+        event.xclient.data.l[0] = wm_atoms[WMDeleteWindow];
+        event.xclient.data.l[1] = CurrentTime;
+        XSendEvent(dpy, client -> win, False, NoEventMask, &event);
+    }
+
+    return exists;
+}
+
 void kill_client(XEvent *event, char *command) {
     (void)command;
     (void)event;
     if (focused == NULL) return;
-    XSetCloseDownMode(dpy, DestroyAll);
-    XKillClient(dpy, focused -> win);
+    if (!send_event(focused)) {
+        XGrabServer(dpy);
+        XSetCloseDownMode(dpy, DestroyAll);
+        XKillClient(dpy, focused -> win);
+        XSync(dpy, False);
+        XUngrabServer(dpy);
+    }
 }
 
 void focus_adjacent(XEvent *event, char *command) {
@@ -500,9 +538,7 @@ void loop(void) {
     }
 }
 
-int ignore(Display *display, XErrorEvent *event) {
-    (void)display;
-    (void)event;
+int ignore() {
     return 0;
 }
 
@@ -549,6 +585,9 @@ void start(void) {
     net_atoms[NetWMWindowTypeToolbar] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);
     net_atoms[NetWMWindowTypeUtility] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_UTILITY", False);
     net_atoms[NetActiveWindow] = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", False);
+
+    wm_atoms[WMDeleteWindow] = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+    wm_atoms[WMProtocols] = XInternAtom(dpy, "WM_PROTOCOLS", False);
 
     change_atom_property(net_atoms[NetSupported], (unsigned char *)net_atoms);
     ewmh_set_current_desktop(0);
