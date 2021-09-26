@@ -1,3 +1,4 @@
+#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -11,14 +12,18 @@
 #define MODCLEAN(mask) (mask & \
         (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
 
+#define MOVERESIZE(win, x, y, width, height) XMoveResizeWindow(dpy, win, x, y, width, height)
+
 typedef struct Client Client;
 struct Client {
     int x, y;
     unsigned int width, height;
     Client *next, *prev;
+    Window win;
 };
 
 static Client *head, *focused;
+static unsigned int total_clients;
 static bool isrunning;
 static Display *dpy;
 static int screen;
@@ -43,15 +48,20 @@ static void grab();
 static void loop();
 
 // events
-static void keypress(XEvent *ev);
-static void buttonpress(XEvent *ev);
-static void maprequest(XEvent *ev);
-static void configurerequest(XEvent *ev);
-static void destroynotify(XEvent *ev);
+static void keypress(XEvent *event);
+static void buttonpress(XEvent *event);
+static void maprequest(XEvent *event);
+static void configurerequest(XEvent *event);
+static void destroynotify(XEvent *event);
 
-static void quit(XEvent *ev, char *command);
+static void quit(XEvent *event, char *command);
+static void add_client(Window win);
+static void tile();
+static void tile_master();
+static void tile_slaves();
+static void focus(Client *client);
 
-static void (*event_handler[LASTEvent])(XEvent *ev) = {
+static void (*event_handler[LASTEvent])(XEvent *event) = {
     [KeyPress] = keypress,
     [ButtonPress] = buttonpress,
     [MapRequest] = maprequest,
@@ -72,16 +82,94 @@ static const key keys[] = {
     {MODKEY|ShiftMask, XK_q, quit, NULL},
 };
 
-void keypress(XEvent *ev) {
-    for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
-        KeySym keysym = XkbKeycodeToKeysym(dpy, ev -> xkey.keycode, 0, 0);
-        if (keysym == keys[i].keysym &&
-                MODCLEAN(keys[i].modifier) == MODCLEAN(ev -> xkey.state))
-            keys[i].execute(ev, keys[i].command);
+
+// function implementation
+void focus(Client *client) {
+    if (!client) client = head;
+    focused = client;
+    if (focused == NULL) return;
+    XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
+    XRaiseWindow(dpy, focused -> win);
+}
+
+void tile_master() {
+    if (head == NULL) return;
+    Client *master = head -> next == NULL ? head : head -> next;
+    master -> x = 0;
+    master -> y = 0;
+    master -> height = root.height;
+    master -> width = master -> next != NULL ? root.width/2 : root.width;
+    MOVERESIZE(master -> win, master -> x, master -> y, master -> width, master -> height);
+}
+
+void tile_slaves() {
+    if (head == NULL || head -> next == NULL) return;
+    Client *slave = head -> next -> next;
+    unsigned int slave_count = total_clients - 1;
+    for (unsigned int i = 0; i < slave_count; i ++, slave = slave -> next) {
+        slave -> x = root.width / 2;
+        slave -> y = (i * root.height) / slave_count;
+        slave -> width = root.width / 2;
+        slave -> height = root.height / slave_count;
+        MOVERESIZE(slave -> win, slave -> x, slave -> y, slave -> width, slave -> height);
     }
 }
 
-void quit(XEvent *ev, char *command) {
+void tile() {
+    tile_master();
+    tile_slaves();
+}
+
+void add_client(Window win) {
+    Client *new_client = (Client *)malloc(sizeof(Client));
+    new_client -> win = win;
+    new_client -> prev = head;
+    if (head == NULL) new_client -> next = NULL;
+    else if (head -> next == NULL) {
+        new_client -> next = head;
+        head -> next = head -> prev = new_client;
+    } else {
+        new_client -> next = head -> next;
+        head -> next = new_client;
+        head -> next -> prev = new_client;
+    }
+
+    head = new_client;
+    total_clients ++;
+}
+
+void destroynotify(XEvent *event) {
+
+}
+
+void configurerequest(XEvent *event) {
+
+}
+
+void maprequest(XEvent *event) {
+    XMapRequestEvent *ev = &event -> xmaprequest;
+    add_client(ev -> window);
+    XMapWindow(dpy, ev -> window);
+    tile();
+    focus(0);
+}
+
+void buttonpress(XEvent *event) {
+
+}
+
+void keypress(XEvent *event) {
+    for (size_t i = 0; i < sizeof(keys) / sizeof(key); i ++) {
+        KeySym keysym = XkbKeycodeToKeysym(dpy, event -> xkey.keycode, 0, 0);
+        if (keysym == keys[i].keysym &&
+                MODCLEAN(keys[i].modifier) == MODCLEAN(event -> xkey.state))
+            keys[i].execute(event, keys[i].command);
+    }
+}
+
+void quit(XEvent *event, char *command) {
+    (void)event;
+    (void)command;
     isrunning = false;
 }
 
@@ -90,8 +178,8 @@ void loop() {
 
     // The main loop.
     // XNextEvent is a blocking call
-    while (isrunning && !XNextEvent(dpy, &ev)) {
-        // listen to events
+    while (isrunning && !XNextEvent(dpy, &ev)) { if (event_handler[ev.type])
+            event_handler[ev.type](&ev);
     }
 }
 
@@ -110,6 +198,7 @@ void grab() {
 
 // Taken from dwm
 void sigchld(int unused) {
+    (void)unused;
     if (signal(SIGCHLD, sigchld) == SIG_ERR)
         die("couldn't install SIGCHLD handler");
     while (0 < waitpid(-1, NULL, WNOHANG));
@@ -129,6 +218,7 @@ void setup() {
     isrunning = true;
 
     head = focused = NULL;
+    total_clients = 0;
 
     // initialise workspaces
     for (int i = 0; i < MAX_WORKSPACES; i ++) {
@@ -138,7 +228,8 @@ void setup() {
 
     current_ws = 0;
 
-    XSelectInput(dpy, root.win, SubstructureNotifyMask|StructureNotifyMask);
+    XSelectInput(dpy, root.win, SubstructureNotifyMask|SubstructureRedirectMask);
+	XDefineCursor(dpy, root.win, XCreateFontCursor(dpy, 68));
 }
 
 void die(char *exit_message) {
