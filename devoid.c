@@ -134,6 +134,7 @@ void start() {
     if (!(dpy = XOpenDisplay(0)))
         die("failed to open display");
 
+    // install a sigchl handler
     sigchld(0);
     XSetErrorHandler(ignore);
 
@@ -154,7 +155,7 @@ void start() {
     // get MapRequest events
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
 
-    // initialised workspaces
+    // initialise workspaces
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
         workspaces[i].focused = workspaces[i].head = NULL;
         workspaces[i].total_clients = 0;
@@ -162,6 +163,8 @@ void start() {
 }
 
 void stop() {
+    XUngrabKey(dpy, AnyKey, AnyModifier, root.win);
+    XSync(dpy, False);
     XCloseDisplay(dpy);
 }
 
@@ -394,16 +397,22 @@ void switch_ws(Arg arg) {
     save_ws();
 
     Client *client = head;
+
+    // This works better than XMapWindow and XUnmapWindow
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
         client -> old_x = client -> x;
         client -> old_y = client -> y;
         client -> old_width = client -> width;
         client -> old_height = client -> height;
 
+        // Move clients off the screen where they are invisible
         client -> x = root.width;
         client -> y = root.height;
+
+        // Resize window to min value. Minimizes screen flicker
         client -> width = 1;
         client -> height = 1;
+
         MOVERESIZE(client -> win, client -> x, client -> y, client -> width, client -> height);
     }
 
