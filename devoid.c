@@ -1,8 +1,8 @@
-#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
@@ -31,6 +31,11 @@ static unsigned int total_clients;
 static Display *dpy;
 static int screen;
 static bool isrunning;
+static unsigned int margin_top = 26;
+static unsigned int margin_right = 6;
+static unsigned int margin_bottom = 6;
+static unsigned int margin_left = 6;
+static unsigned int gap = 20;
 
 struct {
     Window win;
@@ -143,8 +148,8 @@ void start() {
 
     // root window
     root.win = DefaultRootWindow(dpy);
-    root.width = XDisplayWidth(dpy, screen);
-    root.height = XDisplayHeight(dpy, screen);
+    root.width = XDisplayWidth(dpy, screen) - (margin_left + margin_right);
+    root.height = XDisplayHeight(dpy, screen) - (margin_top + margin_bottom);
 
     // for quiting wm
     isrunning = true;
@@ -272,21 +277,33 @@ void tile() {
 
 void tile_master() {
     if (head == NULL) return;
-    head -> x = 0;
-    head -> y = 0;
+    head -> x = margin_left;
+    head -> y = margin_top;
     head -> height = root.height;
-    head -> width = (head -> next != NULL) ? (root.width/2) : root.width;
+    head -> width = (head -> next == NULL) ? root.width : root.width/2 - gap/2;
     XMoveResizeWindow(dpy, head -> win, head -> x, head -> y, head -> width, head -> height);
+}
+
+// things you do for gaps
+void get_slave_props(Client *slave, unsigned int i) {
+    unsigned int slavecount = total_clients - 1;
+    unsigned int usedheight = 0;
+    slave -> x = root.width/2 + gap/2;
+    slave -> y = i == 0 ? margin_top : (i * root.height)/slavecount + gap;
+    slave -> width = root.width/2 - gap/2;
+    slave -> height = slavecount == 1 ? root.height : root.height/slavecount - gap/2;
+
+    usedheight += slave -> height;
+
+    // fill gap caused due to integer division
+    if (slavecount == i) slave -> height += root.height - usedheight;
 }
 
 void tile_slaves() {
     if (head == NULL || head -> next == NULL) return;
     Client *client = head -> next;
     for (unsigned int i = 0; i < total_clients - 1; i ++, client = client -> next) {
-        client -> x = root.width/2;
-        client -> y = (i * root.height) / (total_clients - 1);
-        client -> width = root.width / 2;
-        client -> height = root.height / (total_clients - 1);
+        get_slave_props(client, i);
         XMoveResizeWindow(dpy, client -> win, client -> x, client -> y, client -> width, client -> height);
     }
 }
