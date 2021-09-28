@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <signal.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
@@ -224,7 +223,7 @@ void keypress(XEvent *event) {
 void maprequest(XEvent *event) {
     XMapRequestEvent *ev = &event -> xmaprequest;
 
-    // emit event a destroynotify event on kill
+    // emit a destroynotify event on kill
     XSelectInput(dpy, ev -> window, StructureNotifyMask);
 
     // For pinentry-gtk (and maybe some other programs)
@@ -255,7 +254,7 @@ void add_client(Window win) {
 
     new_client -> win = win;
 
-    // insert new_client in circualar doubly linked list
+    // insert new_client in circular doubly linked list
     if (head == NULL) {
         head = new_client;
         head -> next = head -> prev = NULL;
@@ -298,7 +297,7 @@ void get_slave_props(Client *slave, unsigned int i) {
 
     usedheight += slave -> height;
 
-    // fill gap caused due to integer division
+    // fill in gap caused due to integer division
     if (slavecount == i) slave -> height += root.height - usedheight;
 }
 
@@ -422,7 +421,6 @@ void switch_ws(Arg arg) {
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
         client -> old_x = client -> x;
         client -> old_y = client -> y;
-        client -> old_width = client -> width;
         client -> old_height = client -> height;
 
         // Move clients off the screen where they are invisible
@@ -430,7 +428,6 @@ void switch_ws(Arg arg) {
         client -> y = root.height;
 
         // Resize window to min value. Minimizes screen flicker
-        client -> width = 1;
         client -> height = 1;
 
         MOVERESIZE(client -> win, client -> x, client -> y, client -> width, client -> height);
@@ -445,8 +442,8 @@ void switch_ws(Arg arg) {
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
         client -> x = client -> old_x;
         client -> y = client -> old_y;
-        client -> width = client -> old_width;
         client -> height = client -> old_height;
+
         MOVERESIZE(client -> win, client -> x, client -> y, client -> width, client -> height);
     }
 }
