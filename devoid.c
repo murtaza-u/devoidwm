@@ -160,6 +160,9 @@ void start() {
     // get MapRequest events
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
 
+    // define the cursor
+	XDefineCursor(dpy, root.win, XCreateFontCursor(dpy, 68));
+
     // initialise workspaces
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
         workspaces[i].focused = workspaces[i].head = NULL;
