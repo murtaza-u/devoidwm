@@ -135,16 +135,6 @@ enum {
     NetSupported,
     NetCurrentDesktop,
     NetNumberOfDesktops,
-    NetWMWindowType,
-    NetWMWindowTypeDialog,
-    NetWMWindowTypeMenu,
-    NetWMWindowTypeSplash,
-    NetWMWindowTypeToolbar,
-    NetWMWindowTypeUtility,
-    NetWMState,
-    NetWMStateFullscreen,
-    NetWMStateAbove,
-    NetActiveWindow,
     NetLast
 };
 
@@ -210,16 +200,6 @@ void setup_ewmh_atoms() {
     net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
     net_atoms[NetNumberOfDesktops] = XInternAtom(dpy, "_NET_NUMBER_OF_DESKTOPS", False);
     net_atoms[NetCurrentDesktop] = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
-    net_atoms[NetWMState] = XInternAtom(dpy, "_NET_WM_STATE", False);
-    net_atoms[NetWMStateFullscreen] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
-    net_atoms[NetWMStateAbove] = XInternAtom(dpy, "_NET_WM_STATE_ABOVE", False);
-    net_atoms[NetWMWindowType] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
-    net_atoms[NetWMWindowTypeDialog] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
-    net_atoms[NetWMWindowTypeMenu] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_MENU", False);
-    net_atoms[NetWMWindowTypeSplash] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_SPLASH", False);
-    net_atoms[NetWMWindowTypeToolbar] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);
-    net_atoms[NetWMWindowTypeUtility] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_UTILITY", False);
-    net_atoms[NetActiveWindow] = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", False);
 
     CHANGEATOMPROP(net_atoms[NetSupported], XA_ATOM, (unsigned char *)net_atoms ,NetLast);
     ewmh_set_current_desktop(0);
