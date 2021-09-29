@@ -5,9 +5,8 @@
 #include <sys/wait.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
-#include <X11/keysymdef.h>
-#include <X11/XF86keysym.h>
 #include <X11/XKBlib.h>
+#include <X11/Xatom.h>
 
 #define MAX_WORKSPACES 9
 
@@ -16,6 +15,9 @@
 
 #define MOVERESIZE(win, x, y, width, height) \
     XMoveResizeWindow(dpy, win, x, y, width, height)
+
+#define CHANGEATOMPROP(prop, type, data, nelments) \
+    XChangeProperty(dpy, root.win, prop, type, 32, PropModeReplace, data, nelments);
 
 typedef struct Client Client;
 struct Client {
@@ -50,6 +52,7 @@ static void grab();
 static void loop();
 static int ignore();
 static void sigchld(int unused);
+static void setup_ewmh_atoms();
 
 // event handlers
 static void keypress(XEvent *event);
@@ -127,6 +130,28 @@ static void (*handle_events[LASTEvent])(XEvent *event) = {
     [DestroyNotify] = destroynotify,
 };
 
+// EWMH atoms
+enum {
+    NetSupported,
+    NetCurrentDesktop,
+    NetNumberOfDesktops,
+    NetWMWindowType,
+    NetWMWindowTypeDialog,
+    NetWMWindowTypeMenu,
+    NetWMWindowTypeSplash,
+    NetWMWindowTypeToolbar,
+    NetWMWindowTypeUtility,
+    NetWMState,
+    NetWMStateFullscreen,
+    NetWMStateAbove,
+    NetActiveWindow,
+    NetLast
+};
+
+static Atom net_atoms[NetLast];
+
+static void ewmh_set_current_desktop(unsigned int ws);
+
 int main() {
     start();
     grab();
@@ -176,6 +201,32 @@ void start() {
         workspaces[i].total_clients = 0;
         workspaces[i].fullscreen_lock = false;
     }
+
+    // set EWMH atoms
+    setup_ewmh_atoms();
+}
+
+void setup_ewmh_atoms() {
+    net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
+    net_atoms[NetNumberOfDesktops] = XInternAtom(dpy, "_NET_NUMBER_OF_DESKTOPS", False);
+    net_atoms[NetCurrentDesktop] = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
+    net_atoms[NetWMState] = XInternAtom(dpy, "_NET_WM_STATE", False);
+    net_atoms[NetWMStateFullscreen] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
+    net_atoms[NetWMStateAbove] = XInternAtom(dpy, "_NET_WM_STATE_ABOVE", False);
+    net_atoms[NetWMWindowType] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
+    net_atoms[NetWMWindowTypeDialog] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
+    net_atoms[NetWMWindowTypeMenu] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_MENU", False);
+    net_atoms[NetWMWindowTypeSplash] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_SPLASH", False);
+    net_atoms[NetWMWindowTypeToolbar] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);
+    net_atoms[NetWMWindowTypeUtility] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_UTILITY", False);
+    net_atoms[NetActiveWindow] = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", False);
+
+    CHANGEATOMPROP(net_atoms[NetSupported], XA_ATOM, (unsigned char *)net_atoms ,NetLast);
+    ewmh_set_current_desktop(0);
+
+    unsigned long data[1];
+    data[0] = MAX_WORKSPACES;
+    CHANGEATOMPROP(net_atoms[NetNumberOfDesktops], XA_ATOM, (unsigned char *)data, 1);
 }
 
 void stop() {
@@ -427,6 +478,7 @@ void load_ws() {
 
 void switch_ws(Arg arg) {
     if ((unsigned int)arg.i == current_ws) return;
+
     save_ws();
 
     Client *client = head;
@@ -449,6 +501,7 @@ void switch_ws(Arg arg) {
 
     current_ws = arg.i;
     load_ws();
+    ewmh_set_current_desktop(current_ws);
 
     if (focused != NULL) focus(focused -> win);
 
@@ -476,4 +529,10 @@ void toggle_fullscreen(Arg arg) {
 
     fullscreen_lock = !fullscreen_lock;
     focused -> isfullscreen = fullscreen_lock;
+}
+
+void ewmh_set_current_desktop(unsigned int ws) {
+    unsigned long data[1];
+    data[0] = ws + 1;
+    CHANGEATOMPROP(net_atoms[NetCurrentDesktop], XA_CARDINAL, (unsigned char *)data, 1);
 }
