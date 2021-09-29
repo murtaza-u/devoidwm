@@ -306,25 +306,18 @@ void tile_master() {
 }
 
 // things you do for gaps
-void get_slave_props(Client *slave, unsigned int i) {
-    unsigned int slavecount = total_clients - 1;
-    unsigned int usedheight = 0;
-    slave -> x = root.width/2 + gap/2;
-    slave -> y = i == 0 ? margin_top : (i * root.height)/slavecount + gap;
-    slave -> width = root.width/2 - gap/2;
-    slave -> height = slavecount == 1 ? root.height : root.height/slavecount - gap/2;
-
-    usedheight += slave -> height;
-
-    // fill in gap caused due to integer division
-    if (slavecount == i) slave -> height += root.height - usedheight;
-}
-
 void tile_slaves() {
     if (head == NULL || head -> next == NULL) return;
+
     Client *client = head -> next;
+    unsigned int slavecount = total_clients - 1;
+    unsigned int height = (root.height - (slavecount - 1) * gap) / slavecount;
+
     for (unsigned int i = 0; i < total_clients - 1; i ++, client = client -> next) {
-        get_slave_props(client, i);
+        client -> x = root.width/2 + gap/2;
+        client -> y = i == 0 ? margin_top : margin_top + i * (height + gap);
+        client -> width = root.width/2 - gap/2;
+        client -> height = height;
         XMoveResizeWindow(dpy, client -> win, client -> x, client -> y, client -> width, client -> height);
     }
 }
