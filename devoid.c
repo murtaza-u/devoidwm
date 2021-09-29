@@ -23,6 +23,7 @@ struct Client {
     unsigned int width, height, old_width, old_height;
     Client *next, *prev;
     Window win;
+    bool isfullscreen;
 };
 
 static Client *head, *focused;
@@ -35,6 +36,7 @@ static unsigned int margin_right = 6;
 static unsigned int margin_bottom = 6;
 static unsigned int margin_left = 6;
 static unsigned int gap = 20;
+static bool fullscreen_lock;
 
 struct {
     Window win;
@@ -72,6 +74,7 @@ struct Key {
 struct {
     Client *head, *focused;
     unsigned int total_clients;
+    bool fullscreen_lock;
 } workspaces[MAX_WORKSPACES];
 
 static unsigned int current_ws;
@@ -92,6 +95,7 @@ static void swap(Client *focused_client, Client *target_client);
 static void zoom(Arg arg);
 static void move_client(Arg arg);
 static void kill_client(Arg arg);
+static void toggle_fullscreen(Arg arg);
 
 static void quit(Arg arg);
 
@@ -113,6 +117,7 @@ static const Key keys[] = {
     {MODKEY, XK_7, switch_ws, {.i = 6}},
     {MODKEY, XK_8, switch_ws, {.i = 7}},
     {MODKEY, XK_9, switch_ws, {.i = 8}},
+    {MODKEY|ShiftMask, XK_f, toggle_fullscreen, {0}},
 };
 
 static void (*handle_events[LASTEvent])(XEvent *event) = {
@@ -153,6 +158,9 @@ void start() {
     // for quiting wm
     isrunning = true;
 
+    // fullscreen lock
+    fullscreen_lock = false;
+
     head = focused = NULL;
     total_clients = 0;
 
@@ -166,6 +174,7 @@ void start() {
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
         workspaces[i].focused = workspaces[i].head = NULL;
         workspaces[i].total_clients = 0;
+        workspaces[i].fullscreen_lock = false;
     }
 }
 
@@ -221,6 +230,11 @@ void keypress(XEvent *event) {
 }
 
 void maprequest(XEvent *event) {
+    if (fullscreen_lock) {
+        Arg arg = {0};
+        toggle_fullscreen(arg);
+    }
+
     XMapRequestEvent *ev = &event -> xmaprequest;
 
     // emit a destroynotify event on kill
@@ -241,6 +255,10 @@ void maprequest(XEvent *event) {
 }
 
 void destroynotify(XEvent *event) {
+    if (fullscreen_lock) {
+        Arg arg = {0};
+        toggle_fullscreen(arg);
+    }
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     remove_client(ev -> window);
     tile();
@@ -269,6 +287,7 @@ void add_client(Window win) {
     }
 
     focused = new_client;
+    focused -> isfullscreen = false;
     total_clients ++;
 }
 
@@ -403,12 +422,14 @@ void save_ws() {
     workspaces[current_ws].head = head;
     workspaces[current_ws].focused = focused;
     workspaces[current_ws].total_clients = total_clients;
+    workspaces[current_ws].fullscreen_lock = fullscreen_lock;
 }
 
 void load_ws() {
     head = workspaces[current_ws].head;
     focused = workspaces[current_ws].focused;
     total_clients = workspaces[current_ws].total_clients;
+    fullscreen_lock = workspaces[current_ws].fullscreen_lock;
 }
 
 void switch_ws(Arg arg) {
@@ -446,4 +467,20 @@ void switch_ws(Arg arg) {
 
         MOVERESIZE(client -> win, client -> x, client -> y, client -> width, client -> height);
     }
+}
+
+void toggle_fullscreen(Arg arg) {
+    (void)arg;
+    if (focused == NULL || focused -> isfullscreen != fullscreen_lock) return;
+
+    if (!focused -> isfullscreen) {
+        focused -> x = 0;
+        focused -> y = 0;
+        focused -> width = XDisplayWidth(dpy, screen);
+        focused -> height = XDisplayHeight(dpy, screen);
+        MOVERESIZE(focused -> win, focused -> x, focused -> y, focused -> width, focused -> height);
+    } else tile();
+
+    fullscreen_lock = !fullscreen_lock;
+    focused -> isfullscreen = fullscreen_lock;
 }
