@@ -10,6 +10,8 @@
 
 #define MAX_WORKSPACES 9
 
+#define MAX(a, b) (a) > (b) ? (a) : (b)
+
 #define MODCLEAN(mask) (mask & \
         (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
 
@@ -31,6 +33,8 @@ struct Client {
 static Client *head, *focused;
 static unsigned int total_clients;
 static Display *dpy;
+static XWindowAttributes attr;
+static XButtonEvent prev_pointer_position;
 static int screen;
 static bool isrunning;
 static unsigned int margin_top = 26;
@@ -56,6 +60,9 @@ static void setup_ewmh_atoms();
 
 // event handlers
 static void keypress(XEvent *event);
+static void buttonpress(XEvent *event);
+static void buttonrelease(XEvent *event);
+static void pointermotion(XEvent *event);
 static void maprequest(XEvent *event);
 static void destroynotify(XEvent *event);
 static void configurerequest(XEvent *event);
@@ -125,6 +132,9 @@ static const Key keys[] = {
 
 static void (*handle_events[LASTEvent])(XEvent *event) = {
     [KeyPress] = keypress,
+    [ButtonPress] = buttonpress,
+    [ButtonRelease] = buttonrelease,
+    [MotionNotify] = pointermotion,
     [MapRequest] = maprequest,
     [ConfigureRequest] = configurerequest,
     [DestroyNotify] = destroynotify,
@@ -238,6 +248,9 @@ void grab() {
             GrabModeAsync
         );
     }
+
+    XGrabButton(dpy, 1, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
+    XGrabButton(dpy, 3, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
 }
 
 void loop() {
@@ -258,6 +271,43 @@ void keypress(XEvent *event) {
                 && MODCLEAN(keys[i].modifier) == MODCLEAN(event -> xkey.state))
             keys[i].execute(keys[i].arg);
     }
+}
+
+void buttonpress(XEvent *event) {
+    if(event -> xbutton.subwindow == None) return;
+    XGrabPointer(
+        dpy,
+        event -> xbutton.subwindow,
+        True,
+        PointerMotionMask|ButtonReleaseMask,
+        GrabModeAsync,
+        GrabModeAsync,
+        None,
+        None,
+        CurrentTime
+    );
+
+    XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
+    prev_pointer_position = event -> xbutton;
+}
+
+void pointermotion(XEvent *event) {
+    while(XCheckTypedEvent(dpy, MotionNotify, event));
+    int dx = event -> xbutton.x_root - prev_pointer_position.x_root;
+    int dy = event -> xbutton.y_root - prev_pointer_position.y_root;
+    bool isLeftClick = prev_pointer_position.button == 1;
+    MOVERESIZE(
+        event -> xmotion.window,
+        attr.x + (isLeftClick ? dx : 0),
+        attr.y + (isLeftClick ? dy : 0),
+        MAX(5, attr.width + (isLeftClick ? 0 : dx)),
+        MAX(5, attr.height + (isLeftClick ? 0 : dy))
+    );
+}
+
+void buttonrelease(XEvent *event) {
+    (void)event;
+    XUngrabPointer(dpy, CurrentTime);
 }
 
 void maprequest(XEvent *event) {
