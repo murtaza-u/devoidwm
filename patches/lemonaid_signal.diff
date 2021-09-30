@@ -1,0 +1,24 @@
+--- devoid.c	2021-09-30 16:30:10.153954442 +0530
++++ patches/devoid.c	2021-09-30 16:27:13.531590315 +0530
+@@ -537,4 +537,9 @@
+     unsigned long data[1];
+     data[0] = ws + 1;
+     CHANGEATOMPROP(net_atoms[NetCurrentDesktop], XA_CARDINAL, (unsigned char *)data, 1);
++
++    // lemonaid
++    char command[30];
++    snprintf(command, 30, "pkill -RTMIN+%d lemonaid", lemonaid_signal);
++    system(command);
+ }
+--- config.h	2021-09-30 16:30:10.150621127 +0530
++++ patches/config.h	2021-09-30 16:03:25.309427607 +0530
+@@ -7,6 +7,9 @@
+ static unsigned int margin_left = 6;
+ static unsigned int gap = 20; // gap between 2 windows
+ 
++// lemonaid
++static const int lemonaid_signal = 1;
++
+ /* Mod4Mask -> super key
+  * Mod1Mask -> Alt key
+  * ControlMask -> control key
