@@ -57,11 +57,6 @@ static XWindowAttributes attr;
 static XButtonEvent prev_pointer_position;
 static int screen;
 static bool isrunning;
-static unsigned int margin_top = 26;
-static unsigned int margin_right = 6;
-static unsigned int margin_bottom = 6;
-static unsigned int margin_left = 6;
-static unsigned int gap = 20;
 static bool fullscreen_lock;
 
 static void quit(Arg arg);
@@ -456,17 +451,17 @@ void configurerequest(XEvent *event) {
 // Taken from catwm
 void kill_client(Arg arg) {
     (void)arg;
-    if(focused != NULL) {
-        // send kill signal to window
-        XEvent kill_event;
-        kill_event.type = ClientMessage;
-        kill_event.xclient.window = focused->win;
-        kill_event.xclient.message_type = XInternAtom(dpy, "WM_PROTOCOLS", True);
-        kill_event.xclient.format = 32;
-        kill_event.xclient.data.l[0] = XInternAtom(dpy, "WM_DELETE_WINDOW", True);
-        kill_event.xclient.data.l[1] = CurrentTime;
-        XSendEvent(dpy, focused->win, False, NoEventMask, &kill_event);
-    }
+    if (focused == NULL) return;
+
+    // send kill signal to window
+    XEvent kill_event;
+    kill_event.type = ClientMessage;
+    kill_event.xclient.window = focused->win;
+    kill_event.xclient.message_type = XInternAtom(dpy, "WM_PROTOCOLS", True);
+    kill_event.xclient.format = 32;
+    kill_event.xclient.data.l[0] = XInternAtom(dpy, "WM_DELETE_WINDOW", True);
+    kill_event.xclient.data.l[1] = CurrentTime;
+    XSendEvent(dpy, focused->win, False, NoEventMask, &kill_event);
 }
 
 void save_ws() {
