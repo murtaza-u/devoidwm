@@ -38,6 +38,7 @@ typedef union Arg Arg;
 union Arg {
     const int i;
     const char **command;
+    const Window win;
 };
 
 // EWMH atoms
@@ -216,6 +217,17 @@ void setup_ewmh_atoms() {
 }
 
 void stop() {
+    unsigned int n;
+    Window root_return, parent_return, *children;
+
+    // Kill every last one of them
+    if (XQueryTree(dpy, root.win, &parent_return, &root_return, &children, &n)) {
+        for (unsigned int i = 0; i < n; i ++) {
+            Arg arg = {.win = children[i]};
+            kill_client(arg);
+        }
+    }
+
     XUngrabKey(dpy, AnyKey, AnyModifier, root.win);
     XSync(dpy, False);
     XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
