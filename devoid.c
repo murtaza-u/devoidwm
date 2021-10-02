@@ -330,7 +330,6 @@ void maprequest(XEvent *event) {
     XMapWindow(dpy, ev -> window);
     focus(ev -> window);
     add_client(ev -> window);
-    tile();
 }
 
 void destroynotify(XEvent *event) {
@@ -380,10 +379,18 @@ void add_client(Window win) {
     }
 
     focused = new_client;
-    focused -> isfullscreen = false;
     total_clients ++;
+
     set_client_rules(new_client);
     if (new_client -> isfloating) floating_clients ++;
+    else if (new_client -> isfullscreen) {
+        fullscreen_lock = true;
+        new_client -> x = 0;
+        new_client -> y = 0;
+        new_client -> width = XDisplayWidth(dpy, screen);
+        new_client -> height = XDisplayHeight(dpy, screen);
+        MOVERESIZE(new_client -> win, new_client -> x, new_client -> y, new_client -> width, new_client -> height);
+    } else tile();
 }
 
 void tile() {
@@ -593,6 +600,7 @@ void ewmh_set_current_desktop(unsigned int ws) {
 
 void set_client_rules(Client *client) {
     client -> isfloating = false;
+    client -> isfullscreen = false;
 
     Atom prop = get_atom_prop(client -> win, net_atoms[NetWMWindowType]);
     if (prop == net_atoms[NetWMWindowTypeDialog] ||
@@ -607,6 +615,8 @@ void set_client_rules(Client *client) {
     prop = get_atom_prop(client -> win, net_atoms[NetWMState]);
     if (prop == net_atoms[NetWMStateAbove])
         client -> isfloating = true;
+    else if (prop == net_atoms[NetWMStateFullscreen])
+        client -> isfullscreen = true;
 }
 
 Atom get_atom_prop(Window win, Atom atom) {
@@ -614,19 +624,8 @@ Atom get_atom_prop(Window win, Atom atom) {
     unsigned char *prop_ret = NULL;
     int di;
     unsigned long dl;
-    if (XGetWindowProperty(
-            dpy,
-            win,
-            atom,
-            0,
-            1,
-            False,
-            XA_ATOM,
-            &da,
-            &di,
-            &dl,
-            &dl,
-            &prop_ret) == Success) {
+    if (XGetWindowProperty(dpy, win, atom, 0, 1, False, XA_ATOM, &da, &di, &dl,
+            &dl, &prop_ret) == Success) {
         if (prop_ret) {
             prop = ((Atom *)prop_ret)[0];
             XFree(prop_ret);
