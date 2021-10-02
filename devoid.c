@@ -7,6 +7,7 @@
 #include <X11/keysym.h>
 #include <X11/XKBlib.h>
 #include <X11/Xatom.h>
+#include <X11/cursorfont.h>
 
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 
@@ -45,7 +46,11 @@ enum { NetSupported, NetCurrentDesktop, NetNumberOfDesktops, NetWMWindowType,
     NetWMWindowTypeToolbar, NetWMWindowTypeUtility, NetWMState,
     NetWMStateFullscreen, NetWMStateAbove, NetActiveWindow, NetLast };
 
+// cursors
+enum { CurNormal, CurResize, CurMove, CurLast };
+
 static Atom net_atoms[NetLast];
+static Cursor cursors[CurLast];
 static void ewmh_set_current_desktop(unsigned int ws);
 
 static Client *head, *focused;
@@ -168,8 +173,13 @@ void start() {
     // get MapRequest events
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
 
+    // set cursors
+    cursors[CurNormal] = XCreateFontCursor(dpy, XC_left_ptr);
+    cursors[CurResize] = XCreateFontCursor(dpy, XC_sizing);
+    cursors[CurMove] = XCreateFontCursor(dpy, XC_fleur);
+
     // define the cursor
-	XDefineCursor(dpy, root.win, XCreateFontCursor(dpy, 68));
+	XDefineCursor(dpy, root.win, cursors[CurNormal]);
 
     // initialise workspaces
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
@@ -256,8 +266,9 @@ void keypress(XEvent *event) {
 void buttonpress(XEvent *event) {
     if(event -> xbutton.subwindow == None) return;
     XGrabPointer(dpy, event -> xbutton.subwindow, True,
-        PointerMotionMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync,
-        None, None, CurrentTime);
+        PointerMotionMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None,
+        event -> xbutton.button == 1 ? cursors[CurMove] : cursors[CurResize],
+        CurrentTime);
 
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
     prev_pointer_position = event -> xbutton;
@@ -268,6 +279,7 @@ void pointermotion(XEvent *event) {
     int dx = event -> xbutton.x_root - prev_pointer_position.x_root;
     int dy = event -> xbutton.y_root - prev_pointer_position.y_root;
     bool isLeftClick = prev_pointer_position.button == 1;
+
     MOVERESIZE(event -> xmotion.window, attr.x + (isLeftClick ? dx : 0),
         attr.y + (isLeftClick ? dy : 0),
         MAX(5, attr.width + (isLeftClick ? 0 : dx)),
