@@ -40,22 +40,10 @@ union Arg {
 };
 
 // EWMH atoms
-enum {
-    NetSupported,
-    NetCurrentDesktop,
-    NetNumberOfDesktops,
-    NetWMWindowType,
-    NetWMWindowTypeDialog,
-    NetWMWindowTypeMenu,
-    NetWMWindowTypeSplash,
-    NetWMWindowTypeToolbar,
-    NetWMWindowTypeUtility,
-    NetWMState,
-    NetWMStateFullscreen,
-    NetWMStateAbove,
-    NetActiveWindow,
-    NetLast
-};
+enum { NetSupported, NetCurrentDesktop, NetNumberOfDesktops, NetWMWindowType,
+    NetWMWindowTypeDialog, NetWMWindowTypeMenu, NetWMWindowTypeSplash,
+    NetWMWindowTypeToolbar, NetWMWindowTypeUtility, NetWMState,
+    NetWMStateFullscreen, NetWMStateAbove, NetActiveWindow, NetLast };
 
 static Atom net_atoms[NetLast];
 static void ewmh_set_current_desktop(unsigned int ws);
@@ -107,6 +95,7 @@ static void kill_client(Arg arg);
 static void toggle_fullscreen(Arg arg);
 static void set_client_rules(Client *client);
 
+static bool sendevent(Window win, Atom proto);
 static Atom get_atom_prop(Window win, Atom atom);
 
 typedef struct Key Key;
@@ -218,6 +207,8 @@ void setup_ewmh_atoms() {
 void stop() {
     XUngrabKey(dpy, AnyKey, AnyModifier, root.win);
     XSync(dpy, False);
+    XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
+    XDeleteProperty(dpy, root.win, net_atoms[NetActiveWindow]);
     XCloseDisplay(dpy);
 }
 
@@ -233,17 +224,9 @@ void sigchld(int unused) {
 }
 
 void grab() {
-    for (size_t i = 0; i < sizeof(keys) / sizeof(Key); i ++) {
-        XGrabKey(
-            dpy,
-            XKeysymToKeycode(dpy, keys[i].keysym),
-            keys[i].modifier,
-            root.win,
-            True,
-            GrabModeAsync,
-            GrabModeAsync
-        );
-    }
+    for (size_t i = 0; i < sizeof(keys) / sizeof(Key); i ++)
+        XGrabKey(dpy, XKeysymToKeycode(dpy, keys[i].keysym), keys[i].modifier,
+            root.win, True, GrabModeAsync, GrabModeAsync);
 
     XGrabButton(dpy, 1, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
     XGrabButton(dpy, 3, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
@@ -271,17 +254,9 @@ void keypress(XEvent *event) {
 
 void buttonpress(XEvent *event) {
     if(event -> xbutton.subwindow == None) return;
-    XGrabPointer(
-        dpy,
-        event -> xbutton.subwindow,
-        True,
-        PointerMotionMask|ButtonReleaseMask,
-        GrabModeAsync,
-        GrabModeAsync,
-        None,
-        None,
-        CurrentTime
-    );
+    XGrabPointer(dpy, event -> xbutton.subwindow, True,
+        PointerMotionMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync,
+        None, None, CurrentTime);
 
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
     prev_pointer_position = event -> xbutton;
@@ -292,9 +267,7 @@ void pointermotion(XEvent *event) {
     int dx = event -> xbutton.x_root - prev_pointer_position.x_root;
     int dy = event -> xbutton.y_root - prev_pointer_position.y_root;
     bool isLeftClick = prev_pointer_position.button == 1;
-    MOVERESIZE(
-        event -> xmotion.window,
-        attr.x + (isLeftClick ? dx : 0),
+    MOVERESIZE(event -> xmotion.window, attr.x + (isLeftClick ? dx : 0),
         attr.y + (isLeftClick ? dy : 0),
         MAX(5, attr.width + (isLeftClick ? 0 : dx)),
         MAX(5, attr.height + (isLeftClick ? 0 : dy))
@@ -390,6 +363,7 @@ void add_client(Window win) {
         new_client -> width = XDisplayWidth(dpy, screen);
         new_client -> height = XDisplayHeight(dpy, screen);
         MOVERESIZE(new_client -> win, new_client -> x, new_client -> y, new_client -> width, new_client -> height);
+        CHANGEATOMPROP(net_atoms[NetWMState], XA_ATOM, (unsigned char*)&net_atoms[NetWMStateFullscreen], 1)
     } else tile();
 }
 
@@ -435,6 +409,8 @@ void tile_slaves(Client *pseudohead) {
 void focus(Window win) {
     XSetInputFocus(dpy, win, RevertToParent, CurrentTime);
     XRaiseWindow(dpy, win);
+    CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&win, 1)
+	sendevent(win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
 }
 
 void focus_adjacent(Arg arg) {
@@ -511,14 +487,14 @@ void kill_client(Arg arg) {
     if (focused == NULL) return;
 
     // send kill signal to window
-    XEvent kill_event;
-    kill_event.type = ClientMessage;
-    kill_event.xclient.window = focused->win;
-    kill_event.xclient.message_type = XInternAtom(dpy, "WM_PROTOCOLS", True);
-    kill_event.xclient.format = 32;
-    kill_event.xclient.data.l[0] = XInternAtom(dpy, "WM_DELETE_WINDOW", True);
-    kill_event.xclient.data.l[1] = CurrentTime;
-    XSendEvent(dpy, focused->win, False, NoEventMask, &kill_event);
+    if (!sendevent(focused -> win, XInternAtom(dpy, "WM_DELETE_WINDOW", True))) {
+        // If the client rejects it, we close it down the brutal way
+        XGrabServer(dpy);
+        XSetCloseDownMode(dpy, DestroyAll);
+        XKillClient(dpy, focused -> win);
+        XSync(dpy, False);
+        XUngrabServer(dpy);
+    }
 }
 
 void save_ws() {
@@ -586,6 +562,7 @@ void toggle_fullscreen(Arg arg) {
         focused -> width = XDisplayWidth(dpy, screen);
         focused -> height = XDisplayHeight(dpy, screen);
         MOVERESIZE(focused -> win, focused -> x, focused -> y, focused -> width, focused -> height);
+        CHANGEATOMPROP(net_atoms[NetWMState], XA_ATOM, (unsigned char*)&net_atoms[NetWMStateFullscreen], 1)
     } else tile();
 
     fullscreen_lock = !fullscreen_lock;
@@ -632,4 +609,28 @@ Atom get_atom_prop(Window win, Atom atom) {
         }
     }
     return prop;
+}
+
+// Taken from dwm
+bool sendevent(Window win, Atom proto) {
+    int n;
+    Atom *protocols;
+    bool exists = false;
+    XEvent ev;
+
+    if (XGetWMProtocols(dpy, win, &protocols, &n)) {
+        while (!exists && n--) exists = protocols[n] == proto;
+        XFree(protocols);
+    }
+
+    if (exists) {
+        ev.type = ClientMessage;
+        ev.xclient.window = win;
+        ev.xclient.message_type = XInternAtom(dpy, "WM_PROTOCOLS", True);
+        ev.xclient.format = 32;
+        ev.xclient.data.l[0] = proto;
+        ev.xclient.data.l[1] = CurrentTime;
+        XSendEvent(dpy, win, False, NoEventMask, &ev);
+    }
+    return exists;
 }
