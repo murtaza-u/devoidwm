@@ -121,7 +121,7 @@ struct Key {
 
 struct {
     Client *head, *focused;
-    unsigned int total_clients;
+    unsigned int total_clients, floating_clients;
     bool fullscreen_lock;
 } workspaces[MAX_WORKSPACES];
 
@@ -184,7 +184,7 @@ void start() {
     // initialise workspaces
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
         workspaces[i].focused = workspaces[i].head = NULL;
-        workspaces[i].total_clients = 0;
+        workspaces[i].total_clients = workspaces[i].floating_clients = 0;
         workspaces[i].fullscreen_lock = false;
     }
 
@@ -519,6 +519,7 @@ void save_ws() {
     workspaces[current_ws].focused = focused;
     workspaces[current_ws].total_clients = total_clients;
     workspaces[current_ws].fullscreen_lock = fullscreen_lock;
+    workspaces[current_ws].floating_clients = floating_clients;
 }
 
 void load_ws() {
@@ -526,6 +527,7 @@ void load_ws() {
     focused = workspaces[current_ws].focused;
     total_clients = workspaces[current_ws].total_clients;
     fullscreen_lock = workspaces[current_ws].fullscreen_lock;
+    floating_clients = workspaces[current_ws].floating_clients;
 }
 
 void switch_ws(Arg arg) {
