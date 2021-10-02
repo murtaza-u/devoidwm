@@ -2,11 +2,11 @@
 #define MAX_WORKSPACES 9
 
 static float master_size = 0.6;
-static unsigned int margin_top = 26;
+static unsigned int margin_top = 6;
 static unsigned int margin_right = 6;
 static unsigned int margin_bottom = 6;
 static unsigned int margin_left = 6;
-static unsigned int gap = 20; // gap between 2 windows
+static unsigned int gap = 18; // gap between 2 windows
 
 /* Mod4Mask -> super key
  * Mod1Mask -> Alt key
@@ -48,4 +48,7 @@ static const Key keys[] = {
 
     // toggle fullscreen
     {MODKEY|ShiftMask, XK_f, toggle_fullscreen, {0}},
+
+    {MODKEY, XK_h, change_master_size, {.i = -2}},
+    {MODKEY, XK_l, change_master_size, {.i = 2}},
 };

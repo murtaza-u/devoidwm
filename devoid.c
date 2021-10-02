@@ -94,6 +94,7 @@ static void move_client(Arg arg);
 static void kill_client(Arg arg);
 static void toggle_fullscreen(Arg arg);
 static void set_client_rules(Client *client);
+static void change_master_size(Arg arg);
 
 static bool sendevent(Window win, Atom proto);
 static Atom get_atom_prop(Window win, Atom atom);
@@ -633,4 +634,12 @@ bool sendevent(Window win, Atom proto) {
         XSendEvent(dpy, win, False, NoEventMask, &ev);
     }
     return exists;
+}
+
+void change_master_size(Arg arg) {
+    float new_size = master_size + arg.i/100.0;
+    if (new_size <=0 || new_size >= 1) return;
+
+    master_size = new_size;
+    tile();
 }
