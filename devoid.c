@@ -77,6 +77,7 @@ static void pointermotion(XEvent *event);
 static void maprequest(XEvent *event);
 static void destroynotify(XEvent *event);
 static void configurerequest(XEvent *event);
+static void enternotify(XEvent *event);
 
 static void save_ws();
 static void load_ws();
@@ -122,6 +123,7 @@ static void (*handle_events[LASTEvent])(XEvent *event) = {
     [MapRequest] = maprequest,
     [ConfigureRequest] = configurerequest,
     [DestroyNotify] = destroynotify,
+    [EnterNotify] = enternotify,
 };
 
 int main() {
@@ -291,7 +293,7 @@ void maprequest(XEvent *event) {
     XMapRequestEvent *ev = &event -> xmaprequest;
 
     // emit a destroynotify event on kill
-    XSelectInput(dpy, ev -> window, StructureNotifyMask);
+    XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask);
 
     // For pinentry-gtk (and maybe some other programs)
     Client *client = head;
@@ -316,6 +318,19 @@ void destroynotify(XEvent *event) {
     remove_client(ev -> window);
     tile();
     if (focused != NULL) focus(focused -> win);
+}
+
+void enternotify(XEvent *event) {
+    Window win = event -> xclient.window;
+    focus(win);
+    Client *client = head;
+    do {
+        if (client -> win == win) {
+            focused = client;
+            break;
+        }
+        client = client -> next;
+    } while (client != NULL && client != head);
 }
 
 void add_client(Window win) {
