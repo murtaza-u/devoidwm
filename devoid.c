@@ -379,7 +379,7 @@ void tile() {
     pseudohead -> x = margin_left;
     pseudohead -> y = margin_top;
     pseudohead -> height = root.height;
-    pseudohead -> width = (total_clients - floating_clients == 1) ? root.width : root.width/2 - gap/2;
+    pseudohead -> width = (total_clients - floating_clients == 1) ? root.width : (int)(root.width * master_size) - gap/2;
     XMoveResizeWindow(dpy, pseudohead -> win, pseudohead -> x, pseudohead -> y, pseudohead -> width, pseudohead -> height);
 
     tile_slaves(pseudohead);
@@ -398,9 +398,9 @@ void tile_slaves(Client *pseudohead) {
             i--;
             continue;
         };
-        client -> x = root.width/2 + gap/2;
+        client -> x = (int)(root.width * master_size) + gap/2;
         client -> y = i == 0 ? margin_top : margin_top + i * (height + gap);
-        client -> width = root.width/2 - gap/2;
+        client -> width = (int)(root.width * (1 - master_size)) - gap/2;
         client -> height = height;
         XMoveResizeWindow(dpy, client -> win, client -> x, client -> y, client -> width, client -> height);
     }

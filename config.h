@@ -1,6 +1,7 @@
 // maximum no. of workspaces
 #define MAX_WORKSPACES 9
 
+static float master_size = 0.6;
 static unsigned int margin_top = 26;
 static unsigned int margin_right = 6;
 static unsigned int margin_bottom = 6;
