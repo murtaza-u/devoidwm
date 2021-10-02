@@ -25,7 +25,7 @@ struct Client {
     unsigned int width, height, old_width, old_height;
     Client *next, *prev;
     Window win;
-    bool isfullscreen;
+    bool isfullscreen, isfloating;
 };
 
 struct {
@@ -44,6 +44,16 @@ enum {
     NetSupported,
     NetCurrentDesktop,
     NetNumberOfDesktops,
+    NetWMWindowType,
+    NetWMWindowTypeDialog,
+    NetWMWindowTypeMenu,
+    NetWMWindowTypeSplash,
+    NetWMWindowTypeToolbar,
+    NetWMWindowTypeUtility,
+    NetWMState,
+    NetWMStateFullscreen,
+    NetWMStateAbove,
+    NetActiveWindow,
     NetLast
 };
 
@@ -51,7 +61,7 @@ static Atom net_atoms[NetLast];
 static void ewmh_set_current_desktop(unsigned int ws);
 
 static Client *head, *focused;
-static unsigned int total_clients;
+static unsigned int total_clients, floating_clients;
 static Display *dpy;
 static XWindowAttributes attr;
 static XButtonEvent prev_pointer_position;
@@ -87,8 +97,7 @@ static void switch_ws(Arg arg);
 static void add_client(Window win);
 static void remove_client(Window win);
 static void tile();
-static void tile_master();
-static void tile_slaves();
+static void tile_slaves(Client *pseudohead);
 static void focus(Window win);
 static void focus_adjacent(Arg arg);
 static void swap(Client *focused_client, Client *target_client);
@@ -96,6 +105,9 @@ static void zoom(Arg arg);
 static void move_client(Arg arg);
 static void kill_client(Arg arg);
 static void toggle_fullscreen(Arg arg);
+static void set_client_rules(Client *client);
+
+static Atom get_atom_prop(Window win, Atom atom);
 
 typedef struct Key Key;
 struct Key {
@@ -161,7 +173,7 @@ void start() {
     fullscreen_lock = false;
 
     head = focused = NULL;
-    total_clients = 0;
+    total_clients = floating_clients = 0;
 
     // get MapRequest events
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
@@ -184,6 +196,16 @@ void setup_ewmh_atoms() {
     net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
     net_atoms[NetNumberOfDesktops] = XInternAtom(dpy, "_NET_NUMBER_OF_DESKTOPS", False);
     net_atoms[NetCurrentDesktop] = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
+    net_atoms[NetWMState] = XInternAtom(dpy, "_NET_WM_STATE", False);
+    net_atoms[NetWMStateFullscreen] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
+    net_atoms[NetWMStateAbove] = XInternAtom(dpy, "_NET_WM_STATE_ABOVE", False);
+    net_atoms[NetWMWindowType] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
+    net_atoms[NetWMWindowTypeDialog] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
+    net_atoms[NetWMWindowTypeMenu] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_MENU", False);
+    net_atoms[NetWMWindowTypeSplash] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_SPLASH", False);
+    net_atoms[NetWMWindowTypeToolbar] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);
+    net_atoms[NetWMWindowTypeUtility] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_UTILITY", False);
+    net_atoms[NetActiveWindow] = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", False);
 
     CHANGEATOMPROP(net_atoms[NetSupported], XA_ATOM, (unsigned char *)net_atoms ,NetLast);
     ewmh_set_current_desktop(0);
@@ -292,14 +314,16 @@ void maprequest(XEvent *event) {
 
     XMapRequestEvent *ev = &event -> xmaprequest;
 
-    // emit a destroynotify event on kill
+    // emit DestroyNotify and EnterNotify event
     XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask);
 
     // For pinentry-gtk (and maybe some other programs)
     Client *client = head;
     for(unsigned int i = 0; i < total_clients; i++, client = client -> next)
         if(ev -> window == client -> win) {
-            XMapWindow(dpy,ev -> window);
+            XMapWindow(dpy, ev -> window);
+            focused = client;
+            focus(client -> win);
             return;
         }
 
@@ -314,6 +338,7 @@ void destroynotify(XEvent *event) {
         Arg arg = {0};
         toggle_fullscreen(arg);
     }
+
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     remove_client(ev -> window);
     tile();
@@ -322,11 +347,11 @@ void destroynotify(XEvent *event) {
 
 void enternotify(XEvent *event) {
     Window win = event -> xclient.window;
-    focus(win);
     Client *client = head;
     do {
         if (client -> win == win) {
             focused = client;
+            focus(win);
             break;
         }
         client = client -> next;
@@ -357,31 +382,41 @@ void add_client(Window win) {
     focused = new_client;
     focused -> isfullscreen = false;
     total_clients ++;
+    set_client_rules(new_client);
+    if (new_client -> isfloating) floating_clients ++;
 }
 
 void tile() {
-    tile_master();
-    tile_slaves();
-}
-
-void tile_master() {
     if (head == NULL) return;
-    head -> x = margin_left;
-    head -> y = margin_top;
-    head -> height = root.height;
-    head -> width = (head -> next == NULL) ? root.width : root.width/2 - gap/2;
-    XMoveResizeWindow(dpy, head -> win, head -> x, head -> y, head -> width, head -> height);
+
+    Client *pseudohead = head;
+    while (pseudohead -> isfloating) {
+        pseudohead = pseudohead -> next;
+        if (pseudohead == NULL || pseudohead == head) return;
+    }
+
+    pseudohead -> x = margin_left;
+    pseudohead -> y = margin_top;
+    pseudohead -> height = root.height;
+    pseudohead -> width = (total_clients - floating_clients == 1) ? root.width : root.width/2 - gap/2;
+    XMoveResizeWindow(dpy, pseudohead -> win, pseudohead -> x, pseudohead -> y, pseudohead -> width, pseudohead -> height);
+
+    tile_slaves(pseudohead);
 }
 
 // things you do for gaps
-void tile_slaves() {
-    if (head == NULL || head -> next == NULL) return;
+void tile_slaves(Client *pseudohead) {
+    int slavecount = total_clients - floating_clients - 1;
+    if (slavecount == 0) return;
 
-    Client *client = head -> next;
-    unsigned int slavecount = total_clients - 1;
+    Client *client = pseudohead -> next;
     unsigned int height = (root.height - (slavecount - 1) * gap) / slavecount;
 
-    for (unsigned int i = 0; i < total_clients - 1; i ++, client = client -> next) {
+    for (int i = 0; i < slavecount; i ++, client = client -> next) {
+        if (client -> isfloating) {
+            i--;
+            continue;
+        };
         client -> x = root.width/2 + gap/2;
         client -> y = i == 0 ? margin_top : margin_top + i * (height + gap);
         client -> width = root.width/2 - gap/2;
@@ -421,6 +456,7 @@ void remove_client(Window win) {
 
     if (client == NULL) return;
     focused = client -> prev;
+    if (client -> isfloating) floating_clients --;
     free(client);
     total_clients --;
 }
@@ -449,7 +485,6 @@ void move_client(Arg arg) {
     swap(focused, arg.i == 1 ? focused -> next : focused -> prev);
 }
 
-// Taken from dwm
 void configurerequest(XEvent *event) {
     XConfigureRequestEvent *ev = &event -> xconfigurerequest;
     XWindowChanges wc;
@@ -552,4 +587,48 @@ void ewmh_set_current_desktop(unsigned int ws) {
     unsigned long data[1];
     data[0] = ws + 1;
     CHANGEATOMPROP(net_atoms[NetCurrentDesktop], XA_CARDINAL, (unsigned char *)data, 1);
+}
+
+void set_client_rules(Client *client) {
+    client -> isfloating = false;
+
+    Atom prop = get_atom_prop(client -> win, net_atoms[NetWMWindowType]);
+    if (prop == net_atoms[NetWMWindowTypeDialog] ||
+            prop == net_atoms[NetWMWindowTypeMenu] ||
+            prop == net_atoms[NetWMWindowTypeSplash] ||
+            prop == net_atoms[NetWMWindowTypeToolbar] ||
+            prop == net_atoms[NetWMWindowTypeUtility]) {
+        client -> isfloating = true;
+        return;
+    }
+
+    prop = get_atom_prop(client -> win, net_atoms[NetWMState]);
+    if (prop == net_atoms[NetWMStateAbove])
+        client -> isfloating = true;
+}
+
+Atom get_atom_prop(Window win, Atom atom) {
+    Atom prop = (unsigned long)NULL, da;
+    unsigned char *prop_ret = NULL;
+    int di;
+    unsigned long dl;
+    if (XGetWindowProperty(
+            dpy,
+            win,
+            atom,
+            0,
+            1,
+            False,
+            XA_ATOM,
+            &da,
+            &di,
+            &dl,
+            &dl,
+            &prop_ret) == Success) {
+        if (prop_ret) {
+            prop = ((Atom *)prop_ret)[0];
+            XFree(prop_ret);
+        }
+    }
+    return prop;
 }
