@@ -49,6 +49,6 @@ static const Key keys[] = {
     // toggle fullscreen
     {MODKEY|ShiftMask, XK_f, toggle_fullscreen, {0}},
 
-    {MODKEY, XK_h, change_master_size, {.i = -2}},
-    {MODKEY, XK_l, change_master_size, {.i = 2}},
+    {MODKEY, XK_h, change_master_size, {.i = -5}},
+    {MODKEY, XK_l, change_master_size, {.i = 5}},
 };
