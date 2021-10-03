@@ -281,7 +281,10 @@ void keypress(XEvent *event) {
 }
 
 void buttonpress(XEvent *event) {
-    if(event -> xbutton.subwindow == None) return;
+    if(event -> xbutton.subwindow == None ||
+        (event -> xbutton.button == 1 && event -> xbutton.button == 3))
+        return;
+
     XGrabPointer(dpy, event -> xbutton.subwindow, True,
         PointerMotionMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None,
         event -> xbutton.button == 1 ? cursors[CurMove] : cursors[CurResize],
@@ -289,6 +292,16 @@ void buttonpress(XEvent *event) {
 
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
     prev_pointer_position = event -> xbutton;
+
+    Client *client = head;
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
+        if (event -> xbutton.subwindow == client -> win) {
+            client -> isfloating = true;
+            floating_clients ++;
+            tile();
+            break;
+        }
+    }
 }
 
 void motionnotify(XEvent *event) {
