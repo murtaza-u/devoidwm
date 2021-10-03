@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <X11/Xlib.h>
@@ -8,6 +9,7 @@
 #include <X11/XKBlib.h>
 #include <X11/Xatom.h>
 #include <X11/cursorfont.h>
+#include <X11/Xutil.h>
 
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 
@@ -38,6 +40,12 @@ typedef union Arg Arg;
 union Arg {
     const int i;
     const char **command;
+};
+
+typedef struct Rule Rule;
+struct Rule {
+    char *class, *instance;
+    bool isfloating;
 };
 
 // EWMH atoms
@@ -100,6 +108,7 @@ static void kill_client(Arg arg);
 static void toggle_fullscreen(Arg arg);
 static void set_client_rules(Client *client);
 static void change_master_size(Arg arg);
+static void update_client_hints(Client *client);
 
 static bool sendevent(Window win, Atom proto);
 static Atom get_atom_prop(Window win, Atom atom);
@@ -373,6 +382,7 @@ void add_client(Window win) {
     total_clients ++;
 
     set_client_rules(new_client);
+    update_client_hints(new_client);
 
     focused = new_client;
     focus();
@@ -652,4 +662,13 @@ void change_master_size(Arg arg) {
     if (new_size <=0 || new_size >= 1) return;
     master_size = new_size;
     tile();
+}
+
+void update_client_hints(Client *client) {
+    XClassHint hints = {NULL, NULL};
+    XGetClassHint(dpy, client -> win, &hints);
+    for (size_t i = 0; i < sizeof(rules) / sizeof(Rule); i ++)
+        if ((rules[i].class != NULL && strcmp(rules[i].class, hints.res_class) == 0) ||
+            (rules[i].instance != NULL && strcmp(rules[i].instance, hints.res_name) == 0))
+            client -> isfloating = rules[i].isfloating;
 }

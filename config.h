@@ -8,6 +8,16 @@ static unsigned int margin_bottom = 6;
 static unsigned int margin_left = 6;
 static unsigned int gap = 18; // gap between 2 windows
 
+static const Rule rules[] = {
+    /* xprop:
+     * WM_CLASS(STRING) = class
+     * WM_NAME(STRING) = title
+     */
+
+    /* class        title       isfloating */
+    {"Gcolor3",     NULL,       true},
+};
+
 /* Mod4Mask -> super key
  * Mod1Mask -> Alt key
  * ControlMask -> control key
