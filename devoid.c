@@ -1,3 +1,4 @@
+#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -83,8 +84,8 @@ static void destroynotify(XEvent *event);
 static void configurerequest(XEvent *event);
 static void enternotify(XEvent *event);
 
-static void save_ws();
-static void load_ws();
+static void save_ws(unsigned int ws);
+static void load_ws(unsigned int ws);
 static void switch_ws(Arg arg);
 
 // client operations
@@ -382,13 +383,8 @@ void add_client(Window win) {
     set_client_rules(new_client);
     if (new_client -> isfloating) floating_clients ++;
     else if (new_client -> isfullscreen) {
-        fullscreen_lock = true;
-        new_client -> x = 0;
-        new_client -> y = 0;
-        new_client -> width = XDisplayWidth(dpy, screen);
-        new_client -> height = XDisplayHeight(dpy, screen);
-        MOVERESIZE(new_client -> win, new_client -> x, new_client -> y, new_client -> width, new_client -> height);
-        CHANGEATOMPROP(net_atoms[NetWMState], XA_ATOM, (unsigned char*)&net_atoms[NetWMStateFullscreen], 1)
+        Arg arg = {0};
+        toggle_fullscreen(arg);
     } else tile();
 }
 
@@ -522,59 +518,45 @@ void kill_client(Arg arg) {
     }
 }
 
-void save_ws() {
-    workspaces[current_ws].head = head;
-    workspaces[current_ws].focused = focused;
-    workspaces[current_ws].total_clients = total_clients;
-    workspaces[current_ws].fullscreen_lock = fullscreen_lock;
-    workspaces[current_ws].floating_clients = floating_clients;
+void save_ws(unsigned int ws) {
+    workspaces[ws].head = head;
+    workspaces[ws].focused = focused;
+    workspaces[ws].total_clients = total_clients;
+    workspaces[ws].fullscreen_lock = fullscreen_lock;
+    workspaces[ws].floating_clients = floating_clients;
 }
 
-void load_ws() {
-    head = workspaces[current_ws].head;
-    focused = workspaces[current_ws].focused;
-    total_clients = workspaces[current_ws].total_clients;
-    fullscreen_lock = workspaces[current_ws].fullscreen_lock;
-    floating_clients = workspaces[current_ws].floating_clients;
+void load_ws(unsigned int ws) {
+    head = workspaces[ws].head;
+    focused = workspaces[ws].focused;
+    total_clients = workspaces[ws].total_clients;
+    fullscreen_lock = workspaces[ws].fullscreen_lock;
+    floating_clients = workspaces[ws].floating_clients;
 }
 
 void switch_ws(Arg arg) {
     if ((unsigned int)arg.i == current_ws) return;
 
-    save_ws();
+    save_ws(current_ws); // save current ws
 
+    /* This works better than XMapWindow and XUnmapWindow
+     * Also helps minimize screen flicker
+     */
+
+    // show new clients
+    load_ws(arg.i);
     Client *client = head;
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
+        XMoveWindow(dpy, client -> win, client -> x, client -> y);
 
-    // This works better than XMapWindow and XUnmapWindow
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
-        client -> old_x = client -> x;
-        client -> old_y = client -> y;
-        client -> old_height = client -> height;
-
-        // Move clients off the screen where they are invisible
-        client -> x = root.width;
-        client -> y = root.height;
-
-        // Resize window to min value. Minimizes screen flicker
-        client -> height = 1;
-
-        MOVERESIZE(client -> win, client -> x, client -> y, client -> width, client -> height);
-    }
-
-    current_ws = arg.i;
-    load_ws();
-    ewmh_set_current_desktop(current_ws);
-
-    if (focused != NULL) focus(focused -> win);
-
+    // hide old clients
+    load_ws(current_ws);
     client = head;
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
-        client -> x = client -> old_x;
-        client -> y = client -> old_y;
-        client -> height = client -> old_height;
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
+        XMoveWindow(dpy, client -> win, root.width, root.height);
 
-        MOVERESIZE(client -> win, client -> x, client -> y, client -> width, client -> height);
-    }
+    load_ws(arg.i);
+    current_ws = arg.i;
 }
 
 void toggle_fullscreen(Arg arg) {
