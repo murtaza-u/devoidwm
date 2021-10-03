@@ -534,6 +534,8 @@ void configurerequest(XEvent *event) {
 
 void kill_client(Arg arg) {
     (void)arg;
+    if (focused == NULL) return;
+
     // send kill signal to window
     if (!sendevent(focused -> win, XInternAtom(dpy, "WM_DELETE_WINDOW", True))) {
         // If the client rejects it, we close it down the brutal way
