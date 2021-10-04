@@ -61,4 +61,14 @@ static const Key keys[] = {
 
     {MODKEY, XK_h, change_master_size, {.i = -5}},
     {MODKEY, XK_l, change_master_size, {.i = 5}},
+
+    {MODKEY|ShiftMask, XK_1, send_to_ws, {.i = 0}},
+    {MODKEY|ShiftMask, XK_2, send_to_ws, {.i = 1}},
+    {MODKEY|ShiftMask, XK_3, send_to_ws, {.i = 2}},
+    {MODKEY|ShiftMask, XK_4, send_to_ws, {.i = 3}},
+    {MODKEY|ShiftMask, XK_5, send_to_ws, {.i = 4}},
+    {MODKEY|ShiftMask, XK_6, send_to_ws, {.i = 5}},
+    {MODKEY|ShiftMask, XK_7, send_to_ws, {.i = 6}},
+    {MODKEY|ShiftMask, XK_8, send_to_ws, {.i = 7}},
+    {MODKEY|ShiftMask, XK_9, send_to_ws, {.i = 8}},
 };

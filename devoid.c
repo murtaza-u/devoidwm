@@ -101,7 +101,7 @@ static void add_client(Window win);
 static void remove_client(Window win);
 static void tile();
 static void tile_slaves(Client *pseudohead);
-static void focus();
+static void focus(Client *client);
 static void focus_adjacent(Arg arg);
 static void swap(Client *focused_client, Client *target_client);
 static void zoom(Arg arg);
@@ -111,6 +111,10 @@ static void toggle_fullscreen(Arg arg);
 static void change_master_size(Arg arg);
 static void apply_window_state(Client *client);
 static void apply_rules(Client *client);
+static void show_clients();
+static void hide_clients();
+
+static void send_to_ws(Arg arg);
 
 static bool sendevent(Window win, Atom proto);
 static Atom get_atom_prop(Window win, Atom atom);
@@ -312,11 +316,13 @@ void motionnotify(XEvent *event) {
     int dy = event -> xbutton.y_root - prev_pointer_position.y_root;
     bool isLeftClick = prev_pointer_position.button == 1;
 
-    MOVERESIZE(event -> xmotion.window, attr.x + (isLeftClick ? dx : 0),
-        attr.y + (isLeftClick ? dy : 0),
-        MAX(5, attr.width + (isLeftClick ? 0 : dx)),
-        MAX(5, attr.height + (isLeftClick ? 0 : dy))
-    );
+    focused -> x = attr.x + (isLeftClick ? dx : 0);
+    focused -> y = attr.y + (isLeftClick ? dy : 0);
+    focused -> width = MAX(5, attr.width + (isLeftClick ? 0 : dx));
+    focused -> height = MAX(5, attr.width + (isLeftClick ? 0 : dx));
+
+    MOVERESIZE(event -> xmotion.window, focused -> x, focused -> y,
+        focused -> width, focused -> height);
 }
 
 void buttonrelease(XEvent *event) {
@@ -340,19 +346,15 @@ void maprequest(XEvent *event) {
     for(unsigned int i = 0; i < total_clients; i++, client = client -> next)
         if(ev -> window == client -> win) {
             XMapWindow(dpy, ev -> window);
-            focused = client;
-            focus();
+            focus(client);
             return;
         }
 
     XMapWindow(dpy, ev -> window);
     add_client(ev -> window);
-    focus();
-    apply_window_state(focused);
-    apply_rules(focused);
+    focus(focused);
 
-    if (focused -> isfloating) floating_clients ++;
-    else if (focused -> isfullscreen) {
+    if (focused -> isfullscreen) {
         Arg arg = {0};
         toggle_fullscreen(arg);
     } else tile();
@@ -366,20 +368,17 @@ void destroynotify(XEvent *event) {
 
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     remove_client(ev -> window);
-
-    if (focused != NULL) {
-        focus();
-        tile();
-    }
+    focus(focused);
+    tile();
 }
 
 void enternotify(XEvent *event) {
+    if (focused == NULL) return;
     XCrossingEvent *ev = &event -> xcrossing;
     Client *client = head;
     do {
         if (client -> win == ev -> window) {
-            focused = client;
-            focus();
+            focus(client);
             break;
         }
         client = client -> next;
@@ -409,6 +408,9 @@ void add_client(Window win) {
 
     total_clients ++;
     focused = new_client;
+    apply_window_state(focused);
+    apply_rules(focused);
+    if (focused -> isfloating) floating_clients ++;
 }
 
 void tile() {
@@ -450,7 +452,8 @@ void tile_slaves(Client *pseudohead) {
     }
 }
 
-void focus() {
+void focus(Client *client) {
+    focused = client;
     if (focused == NULL) return;
     XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
     if (focused -> isfloating) XRaiseWindow(dpy, focused -> win);
@@ -460,8 +463,7 @@ void focus() {
 
 void focus_adjacent(Arg arg) {
     if (focused == NULL || focused -> next == NULL) return;
-    focused = arg.i == 1 ? focused -> next : focused -> prev;
-    focus();
+    focus(arg.i == 1 ? focused -> next : focused -> prev);
 }
 
 void remove_client(Window win) {
@@ -499,8 +501,7 @@ void swap(Client *focused_client, Client *target_client) {
     MOVERESIZE(focused_client -> win, focused_client -> x, focused_client -> y, focused_client -> width, focused_client -> height);
     MOVERESIZE(target_client -> win, target_client -> x, target_client -> y, target_client -> width, target_client -> height);
 
-    focused = target_client;
-    focus();
+    focus(target_client);
 }
 
 void zoom(Arg arg) {
@@ -554,18 +555,19 @@ void save_ws(unsigned int ws) {
     workspaces[ws].head = head;
     workspaces[ws].focused = focused;
     workspaces[ws].total_clients = total_clients;
-    workspaces[ws].fullscreen_lock = fullscreen_lock;
     workspaces[ws].floating_clients = floating_clients;
+    workspaces[ws].fullscreen_lock = fullscreen_lock;
 }
 
 void load_ws(unsigned int ws) {
     head = workspaces[ws].head;
     focused = workspaces[ws].focused;
     total_clients = workspaces[ws].total_clients;
-    fullscreen_lock = workspaces[ws].fullscreen_lock;
     floating_clients = workspaces[ws].floating_clients;
+    fullscreen_lock = workspaces[ws].fullscreen_lock;
 }
 
+// REF
 void switch_ws(Arg arg) {
     if ((unsigned int)arg.i == current_ws) return;
 
@@ -577,20 +579,16 @@ void switch_ws(Arg arg) {
 
     // show new clients first
     load_ws(arg.i);
-    Client *client = head;
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
-        XMoveWindow(dpy, client -> win, client -> x, client -> y);
+    show_clients();
 
     // hide old clients
     load_ws(current_ws);
-    client = head;
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
-        XMoveWindow(dpy, client -> win, root.width, root.height);
+    hide_clients();
 
     load_ws(arg.i);
     current_ws = arg.i;
     ewmh_set_current_desktop(current_ws);
-    if (focused != NULL) focus();
+    focus(focused);
 }
 
 void toggle_fullscreen(Arg arg) {
@@ -677,7 +675,7 @@ bool sendevent(Window win, Atom proto) {
 
 void change_master_size(Arg arg) {
     float new_size = master_size + arg.i/100.0;
-    if (new_size <=0 || new_size >= 1) return;
+    if (new_size <= 0 || new_size >= 1) return;
     master_size = new_size;
     tile();
 }
@@ -689,4 +687,39 @@ void apply_rules(Client *client) {
         if ((rules[i].class != NULL && strcmp(rules[i].class, hints.res_class) == 0) ||
             (rules[i].instance != NULL && strcmp(rules[i].instance, hints.res_name) == 0))
             client -> isfloating = rules[i].isfloating;
+}
+
+void send_to_ws(Arg arg) {
+    if ((unsigned int)arg.i == current_ws || focused == NULL) return;
+
+    Client *temp = focused;
+    save_ws(current_ws);
+    load_ws(arg.i);
+    add_client(temp -> win);
+    if (focused -> isfloating) {
+        focused -> x = temp -> x;
+        focused -> y = temp -> y;
+        focused -> width = temp -> width;
+        focused -> height = temp -> height;
+    } else tile();
+
+    hide_clients();
+
+    save_ws(arg.i);
+    load_ws(current_ws);
+    remove_client(temp -> win);
+    focus(focused);
+    tile();
+}
+
+void show_clients() {
+    Client *client = head;
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
+        XMoveWindow(dpy, client -> win, client -> x, client -> y);
+}
+
+void hide_clients() {
+    Client *client = head;
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
+        XMoveWindow(dpy, client -> win, root.width + margin_left + margin_right, root.height + margin_top + margin_bottom);
 }
