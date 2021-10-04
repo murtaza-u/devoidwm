@@ -22,6 +22,8 @@
 #define CHANGEATOMPROP(prop, type, data, nelments) \
     XChangeProperty(dpy, root.win, prop, type, 32, PropModeReplace, data, nelments);
 
+#define GETATOMIDENTIFIER(name) XInternAtom(dpy, name, False)
+
 typedef struct Client Client;
 struct Client {
     int x, y;
@@ -87,7 +89,6 @@ static void motionnotify(XEvent *event);
 static void maprequest(XEvent *event);
 static void destroynotify(XEvent *event);
 static void configurerequest(XEvent *event);
-static void configurenotify(XEvent *event);
 static void enternotify(XEvent *event);
 
 static void save_ws(unsigned int ws);
@@ -107,9 +108,9 @@ static void zoom(Arg arg);
 static void move_client(Arg arg);
 static void kill_client(Arg arg);
 static void toggle_fullscreen(Arg arg);
-static void set_client_rules(Client *client);
 static void change_master_size(Arg arg);
-static void update_client_hints(Client *client);
+static void apply_window_state(Client *client);
+static void apply_rules(Client *client);
 
 static bool sendevent(Window win, Atom proto);
 static Atom get_atom_prop(Window win, Atom atom);
@@ -139,7 +140,6 @@ static void (*handle_events[LASTEvent])(XEvent *event) = {
     [MotionNotify] = motionnotify,
     [MapRequest] = maprequest,
     [ConfigureRequest] = configurerequest,
-    [ConfigureNotify] = configurenotify,
     [DestroyNotify] = destroynotify,
     [EnterNotify] = enternotify,
 };
@@ -204,19 +204,19 @@ void start() {
 }
 
 void setup_ewmh_atoms() {
-    net_atoms[NetSupported] = XInternAtom(dpy, "_NET_SUPPORTED", False);
-    net_atoms[NetNumberOfDesktops] = XInternAtom(dpy, "_NET_NUMBER_OF_DESKTOPS", False);
-    net_atoms[NetCurrentDesktop] = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
-    net_atoms[NetWMState] = XInternAtom(dpy, "_NET_WM_STATE", False);
-    net_atoms[NetWMStateFullscreen] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
-    net_atoms[NetWMStateAbove] = XInternAtom(dpy, "_NET_WM_STATE_ABOVE", False);
-    net_atoms[NetWMWindowType] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
-    net_atoms[NetWMWindowTypeDialog] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
-    net_atoms[NetWMWindowTypeMenu] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_MENU", False);
-    net_atoms[NetWMWindowTypeSplash] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_SPLASH", False);
-    net_atoms[NetWMWindowTypeToolbar] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_TOOLBAR", False);
-    net_atoms[NetWMWindowTypeUtility] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_UTILITY", False);
-    net_atoms[NetActiveWindow] = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", False);
+    net_atoms[NetSupported] = GETATOMIDENTIFIER("_NET_SUPPORTED");
+    net_atoms[NetNumberOfDesktops] = GETATOMIDENTIFIER("_NET_NUMBER_OF_DESKTOPS");
+    net_atoms[NetCurrentDesktop] = GETATOMIDENTIFIER("_NET_CURRENT_DESKTOP");
+    net_atoms[NetWMState] = GETATOMIDENTIFIER("_NET_WM_STATE");
+    net_atoms[NetWMStateFullscreen] = GETATOMIDENTIFIER("_NET_WM_STATE_FULLSCREEN");
+    net_atoms[NetWMStateAbove] = GETATOMIDENTIFIER("_NET_WM_STATE_ABOVE");
+    net_atoms[NetWMWindowType] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE");
+    net_atoms[NetWMWindowTypeDialog] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_DIALOG");
+    net_atoms[NetWMWindowTypeMenu] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_MENU");
+    net_atoms[NetWMWindowTypeSplash] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_SPLASH");
+    net_atoms[NetWMWindowTypeToolbar] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_TOOLBAR");
+    net_atoms[NetWMWindowTypeUtility] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_UTILITY");
+    net_atoms[NetActiveWindow] = GETATOMIDENTIFIER("_NET_ACTIVE_WINDOW");
 
     CHANGEATOMPROP(net_atoms[NetSupported], XA_ATOM, (unsigned char *)net_atoms ,NetLast);
     ewmh_set_current_desktop(0);
@@ -347,6 +347,15 @@ void maprequest(XEvent *event) {
 
     XMapWindow(dpy, ev -> window);
     add_client(ev -> window);
+    focus();
+    apply_window_state(focused);
+    apply_rules(focused);
+
+    if (focused -> isfloating) floating_clients ++;
+    else if (focused -> isfullscreen) {
+        Arg arg = {0};
+        toggle_fullscreen(arg);
+    } else tile();
 }
 
 void destroynotify(XEvent *event) {
@@ -357,7 +366,11 @@ void destroynotify(XEvent *event) {
 
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     remove_client(ev -> window);
-    tile();
+
+    if (focused != NULL) {
+        focus();
+        tile();
+    }
 }
 
 void enternotify(XEvent *event) {
@@ -395,18 +408,7 @@ void add_client(Window win) {
     }
 
     total_clients ++;
-
-    set_client_rules(new_client);
-    update_client_hints(new_client);
-
     focused = new_client;
-    focus();
-
-    if (new_client -> isfloating) floating_clients ++;
-    else if (new_client -> isfullscreen) {
-        Arg arg = {0};
-        toggle_fullscreen(arg);
-    } else tile();
 }
 
 void tile() {
@@ -464,7 +466,7 @@ void focus_adjacent(Arg arg) {
 
 void remove_client(Window win) {
     Client *client = head;
-    for (unsigned int i = 0; i < total_clients && client != NULL; i ++, client = client -> next) {
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
         if (client -> win != win) continue;
 
         if (client == head) head = head -> next;
@@ -481,9 +483,8 @@ void remove_client(Window win) {
     }
 
     if (client == NULL) return;
-    focused = client -> prev;
-    if (focused != NULL) focus();
     if (client -> isfloating) floating_clients --;
+    focused = client -> prev;
     free(client);
     total_clients --;
 }
@@ -523,10 +524,7 @@ void configurerequest(XEvent *event) {
     wc.sibling = ev -> above;
     wc.stack_mode = ev -> detail;
     XConfigureWindow(dpy, ev -> window, ev -> value_mask, &wc);
-}
 
-void configurenotify(XEvent *event) {
-    XConfigureEvent *ev = &event -> xconfigure;
     Client *client = head;
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
         if (client -> win != ev -> window) continue;
@@ -619,7 +617,7 @@ void ewmh_set_current_desktop(unsigned int ws) {
     CHANGEATOMPROP(net_atoms[NetCurrentDesktop], XA_CARDINAL, (unsigned char *)data, 1);
 }
 
-void set_client_rules(Client *client) {
+void apply_window_state(Client *client) {
     client -> isfloating = false;
     client -> isfullscreen = false;
 
@@ -684,7 +682,7 @@ void change_master_size(Arg arg) {
     tile();
 }
 
-void update_client_hints(Client *client) {
+void apply_rules(Client *client) {
     XClassHint hints = {NULL, NULL};
     XGetClassHint(dpy, client -> win, &hints);
     for (size_t i = 0; i < sizeof(rules) / sizeof(Rule); i ++)
