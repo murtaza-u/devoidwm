@@ -87,6 +87,7 @@ static void motionnotify(XEvent *event);
 static void maprequest(XEvent *event);
 static void destroynotify(XEvent *event);
 static void configurerequest(XEvent *event);
+static void configurenotify(XEvent *event);
 static void enternotify(XEvent *event);
 
 static void save_ws(unsigned int ws);
@@ -138,6 +139,7 @@ static void (*handle_events[LASTEvent])(XEvent *event) = {
     [MotionNotify] = motionnotify,
     [MapRequest] = maprequest,
     [ConfigureRequest] = configurerequest,
+    [ConfigureNotify] = configurenotify,
     [DestroyNotify] = destroynotify,
     [EnterNotify] = enternotify,
 };
@@ -521,7 +523,10 @@ void configurerequest(XEvent *event) {
     wc.sibling = ev -> above;
     wc.stack_mode = ev -> detail;
     XConfigureWindow(dpy, ev -> window, ev -> value_mask, &wc);
+}
 
+void configurenotify(XEvent *event) {
+    XConfigureEvent *ev = &event -> xconfigure;
     Client *client = head;
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
         if (client -> win != ev -> window) continue;
