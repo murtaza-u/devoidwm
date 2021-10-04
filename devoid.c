@@ -263,8 +263,10 @@ void grab() {
         XGrabKey(dpy, XKeysymToKeycode(dpy, keys[i].keysym), keys[i].modifier,
             root.win, True, GrabModeAsync, GrabModeAsync);
 
-    XGrabButton(dpy, 1, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
-    XGrabButton(dpy, 3, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
+    XGrabButton(dpy, 1, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync,
+                GrabModeAsync, None, None);
+    XGrabButton(dpy, 3, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync,
+                GrabModeAsync, None, None);
 }
 
 void loop() {
@@ -281,16 +283,15 @@ void quit(Arg arg) {
 void keypress(XEvent *event) {
     for (size_t i = 0; i < sizeof(keys) / sizeof(Key); i ++) {
         KeySym keysym = XkbKeycodeToKeysym(dpy, event -> xkey.keycode, 0, 0);
-        if (keysym == keys[i].keysym
-                && MODCLEAN(keys[i].modifier) == MODCLEAN(event -> xkey.state))
+        if (keysym == keys[i].keysym &&
+            MODCLEAN(keys[i].modifier) == MODCLEAN(event -> xkey.state))
             keys[i].execute(keys[i].arg);
     }
 }
 
 void buttonpress(XEvent *event) {
     if(event -> xbutton.subwindow == None ||
-        (event -> xbutton.button == 1 && event -> xbutton.button == 3))
-        return;
+        (event -> xbutton.button == 1 && event -> xbutton.button == 3)) return;
 
     XGrabPointer(dpy, event -> xbutton.subwindow, True,
         PointerMotionMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None,
@@ -303,9 +304,11 @@ void buttonpress(XEvent *event) {
     Client *client = head;
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
         if (event -> xbutton.subwindow == client -> win) {
-            client -> isfloating = true;
-            floating_clients ++;
-            tile();
+            if (!client -> isfloating) {
+                client -> isfloating = true;
+                floating_clients ++;
+                tile();
+            }
             break;
         }
     }
@@ -319,11 +322,11 @@ void motionnotify(XEvent *event) {
 
     focused -> x = attr.x + (isLeftClick ? dx : 0);
     focused -> y = attr.y + (isLeftClick ? dy : 0);
-    focused -> width = MAX(5, attr.width + (isLeftClick ? 0 : dx));
-    focused -> height = MAX(5, attr.width + (isLeftClick ? 0 : dx));
+    focused -> width = MAX(1, attr.width + (isLeftClick ? 0 : dx));
+    focused -> height = MAX(1, attr.height + (isLeftClick ? 0 : dx));
 
     MOVERESIZE(event -> xmotion.window, focused -> x, focused -> y,
-        focused -> width, focused -> height);
+               focused -> width, focused -> height);
 }
 
 void buttonrelease(XEvent *event) {
@@ -358,7 +361,15 @@ void maprequest(XEvent *event) {
     if (focused -> isfullscreen) {
         Arg arg = {0};
         toggle_fullscreen(arg);
+    } else if (focused -> isfloating) {
+        XGetWindowAttributes(dpy, focused -> win, &attr);
+        focused -> x = attr.x;
+        focused -> y = attr.y;
+        focused -> width = attr.width;
+        focused -> height = attr.height;
     } else tile();
+
+    XSync(dpy, True);
 }
 
 void destroynotify(XEvent *event) {
@@ -371,6 +382,7 @@ void destroynotify(XEvent *event) {
     remove_client(ev -> window);
     focus(focused);
     tile();
+    XSync(dpy, True);
 }
 
 void enternotify(XEvent *event) {
@@ -460,7 +472,6 @@ void focus(Client *client) {
     if (focused -> isfloating) XRaiseWindow(dpy, focused -> win);
     CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&focused -> win, 1)
 	sendevent(focused -> win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
-    XSync(dpy, True);
 }
 
 void focus_adjacent(Arg arg) {
@@ -500,8 +511,10 @@ void swap(Client *focused_client, Client *target_client) {
     focused_client -> win = target_client -> win;
     target_client -> win = temp;
 
-    MOVERESIZE(focused_client -> win, focused_client -> x, focused_client -> y, focused_client -> width, focused_client -> height);
-    MOVERESIZE(target_client -> win, target_client -> x, target_client -> y, target_client -> width, target_client -> height);
+    MOVERESIZE(focused_client -> win, focused_client -> x, focused_client -> y,
+               focused_client -> width, focused_client -> height);
+    MOVERESIZE(target_client -> win, target_client -> x, target_client -> y,
+               target_client -> width, target_client -> height);
 
     focus(target_client);
 }
@@ -569,7 +582,6 @@ void load_ws(unsigned int ws) {
     fullscreen_lock = workspaces[ws].fullscreen_lock;
 }
 
-// REF
 void switch_ws(Arg arg) {
     if ((unsigned int)arg.i == current_ws) return;
 
@@ -591,6 +603,7 @@ void switch_ws(Arg arg) {
     current_ws = arg.i;
     ewmh_set_current_desktop(current_ws);
     focus(focused);
+    XSync(dpy, True);
 }
 
 void toggle_fullscreen(Arg arg) {
@@ -602,8 +615,10 @@ void toggle_fullscreen(Arg arg) {
         focused -> y = 0;
         focused -> width = XDisplayWidth(dpy, screen);
         focused -> height = XDisplayHeight(dpy, screen);
-        MOVERESIZE(focused -> win, focused -> x, focused -> y, focused -> width, focused -> height);
-        CHANGEATOMPROP(net_atoms[NetWMState], XA_ATOM, (unsigned char*)&net_atoms[NetWMStateFullscreen], 1);
+        MOVERESIZE(focused -> win, focused -> x, focused -> y, focused ->
+                   width, focused -> height);
+        CHANGEATOMPROP(net_atoms[NetWMState], XA_ATOM, (unsigned
+                       char*)&net_atoms[NetWMStateFullscreen], 1);
         XRaiseWindow(dpy, focused -> win);
     } else tile();
 
@@ -616,7 +631,8 @@ void toggle_fullscreen(Arg arg) {
 void ewmh_set_current_desktop(unsigned int ws) {
     unsigned long data[1];
     data[0] = ws + 1;
-    CHANGEATOMPROP(net_atoms[NetCurrentDesktop], XA_CARDINAL, (unsigned char *)data, 1);
+    CHANGEATOMPROP(net_atoms[NetCurrentDesktop], XA_CARDINAL,
+                   (unsigned char *)data, 1);
 }
 
 void apply_window_state(Client *client) {
@@ -635,7 +651,8 @@ void apply_window_state(Client *client) {
 
     prop = get_atom_prop(client -> win, net_atoms[NetWMState]);
     if (prop == net_atoms[NetWMStateAbove]) client -> isfloating = true;
-    else if (prop == net_atoms[NetWMStateFullscreen]) client -> isfullscreen = true;
+    else if (prop == net_atoms[NetWMStateFullscreen])
+        client -> isfullscreen = true;
 }
 
 Atom get_atom_prop(Window win, Atom atom) {
@@ -714,6 +731,7 @@ void send_to_ws(Arg arg) {
     remove_client(temp -> win);
     focus(focused);
     tile();
+    XSync(dpy, True);
 }
 
 void show_clients() {
@@ -725,5 +743,5 @@ void show_clients() {
 void hide_clients() {
     Client *client = head;
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
-        XMoveWindow(dpy, client -> win, root.width + margin_left + margin_right, root.height + margin_top + margin_bottom);
+        XMoveWindow(dpy, client -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
 }

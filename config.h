@@ -1,7 +1,7 @@
 // maximum no. of workspaces
 #define MAX_WORKSPACES 9
 
-static float master_size = 0.6;
+static float master_size = 0.6; // size of the master window range -> (0, 1)
 static unsigned int margin_top = 6;
 static unsigned int margin_right = 6;
 static unsigned int margin_bottom = 6;
@@ -59,9 +59,11 @@ static const Key keys[] = {
     // toggle fullscreen
     {MODKEY|ShiftMask, XK_f, toggle_fullscreen, {0}},
 
+    // change the size of the master window
     {MODKEY, XK_h, change_master_size, {.i = -5}},
     {MODKEY, XK_l, change_master_size, {.i = 5}},
 
+    // send focused client to a different workspace
     {MODKEY|ShiftMask, XK_1, send_to_ws, {.i = 0}},
     {MODKEY|ShiftMask, XK_2, send_to_ws, {.i = 1}},
     {MODKEY|ShiftMask, XK_3, send_to_ws, {.i = 2}},
