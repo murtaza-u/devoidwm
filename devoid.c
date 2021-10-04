@@ -1,3 +1,4 @@
+#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -459,6 +460,7 @@ void focus(Client *client) {
     if (focused -> isfloating) XRaiseWindow(dpy, focused -> win);
     CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&focused -> win, 1)
 	sendevent(focused -> win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
+    XSync(dpy, True);
 }
 
 void focus_adjacent(Arg arg) {
@@ -607,6 +609,8 @@ void toggle_fullscreen(Arg arg) {
 
     fullscreen_lock = !fullscreen_lock;
     focused -> isfullscreen = fullscreen_lock;
+
+    XSync(dpy, True);
 }
 
 void ewmh_set_current_desktop(unsigned int ws) {
