@@ -114,8 +114,8 @@ static void toggle_fullscreen(Arg arg);
 static void change_master_size(Arg arg);
 static void apply_window_state(Client *client);
 static void apply_rules(Client *client);
-static void show_clients(Client *client);
-static void hide_clients(Client *client);
+static void show_clients();
+static void hide_clients();
 
 typedef struct Key Key;
 struct Key {
@@ -593,11 +593,11 @@ void switch_ws(Arg arg) {
 
     // show new clients first
     load_ws(arg.i);
-    show_clients(head);
+    show_clients();
 
     // hide old clients
     load_ws(current_ws);
-    hide_clients(head);
+    hide_clients();
 
     load_ws(arg.i);
     current_ws = arg.i;
@@ -723,7 +723,7 @@ void send_to_ws(Arg arg) {
         focused -> height = temp -> height;
     } else tile();
 
-    hide_clients(head);
+    hide_clients();
 
     save_ws(arg.i);
     load_ws(current_ws);
@@ -733,14 +733,14 @@ void send_to_ws(Arg arg) {
     XSync(dpy, True);
 }
 
-void show_clients(Client *client) {
-    if (client == NULL) return;
-    XMoveWindow(dpy, client -> win, client -> x, client -> y);
-    show_clients(client -> next);
+void show_clients() {
+    Client *client = head;
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
+        XMoveWindow(dpy, client -> win, client -> x, client -> y);
 }
 
-void hide_clients(Client *client) {
-    if (client == NULL) return;
-    hide_clients(client -> next);
-    XMoveWindow(dpy, client -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
+void hide_clients() {
+    Client *client = head;
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
+        XMoveWindow(dpy, client -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
 }
