@@ -339,6 +339,9 @@ void maprequest(XEvent *event) {
 
     XMapRequestEvent *ev = &event -> xmaprequest;
 
+    XGetWindowAttributes(dpy, ev -> window, &attr);
+    if (attr.override_redirect) return; // docs says window managers must ignore such windows
+
     // emit DestroyNotify and EnterNotify event
     XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask);
 
