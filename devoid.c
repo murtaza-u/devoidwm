@@ -116,6 +116,8 @@ static void apply_window_state(Client *client);
 static void apply_rules(Client *client);
 static void show_clients();
 static void hide_clients();
+static void apply_window_attributes(Client *client);
+static Client* win_to_client(Window win);
 
 typedef struct Key Key;
 struct Key {
@@ -221,7 +223,7 @@ void setup_ewmh_atoms() {
     net_atoms[NetActiveWindow] = GETATOMIDENTIFIER("_NET_ACTIVE_WINDOW");
 
     CHANGEATOMPROP(net_atoms[NetSupported], XA_ATOM, (unsigned char *)net_atoms ,NetLast);
-    ewmh_set_current_desktop(0);
+    ewmh_set_current_desktop(0); // set the default workspace
 
     unsigned long data[1];
     data[0] = MAX_WORKSPACES;
@@ -298,15 +300,12 @@ void buttonpress(XEvent *event) {
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
     prev_pointer_position = event -> xbutton;
 
-    Client *client = head;
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
-        if (event -> xbutton.subwindow == client -> win) {
-            if (!client -> isfloating) {
-                client -> isfloating = true;
-                floating_clients ++;
-                tile();
-            }
-            break;
+    Client *client;
+    if ((client = win_to_client(event -> xbutton.subwindow))) {
+        if (!client -> isfloating) {
+            client -> isfloating = true;
+            floating_clients ++;
+            tile();
         }
     }
 }
@@ -363,10 +362,7 @@ void maprequest(XEvent *event) {
         toggle_fullscreen(arg);
     } else if (focused -> isfloating) {
         XGetWindowAttributes(dpy, focused -> win, &attr);
-        focused -> x = attr.x;
-        focused -> y = attr.y;
-        focused -> width = attr.width;
-        focused -> height = attr.height;
+        apply_window_state(focused);
     } else tile();
 
     XSync(dpy, True);
@@ -544,9 +540,8 @@ void configurerequest(XEvent *event) {
     wc.stack_mode = ev -> detail;
     XConfigureWindow(dpy, ev -> window, ev -> value_mask, &wc);
 
-    Client *client = head;
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
-        if (client -> win != ev -> window) continue;
+    Client *client;
+    if ((client = win_to_client(ev -> window))) {
         client -> x = ev -> x;
         client -> y = ev -> y;
         client -> width = ev -> width;
@@ -746,4 +741,18 @@ void hide_clients() {
     Client *client = head;
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
         XMoveWindow(dpy, client -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
+}
+
+void apply_window_attributes(Client *client) {
+    client -> x = attr.x;
+    client -> y = attr.y;
+    client -> width = attr.width;
+    client -> height = attr.height;
+}
+
+Client* win_to_client(Window win) {
+    Client *client = head;
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
+        if (client -> win == win) return client;
+    return NULL;
 }
