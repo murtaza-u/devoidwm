@@ -81,6 +81,8 @@ static void loop();
 static int ignore();
 static void sigchld(int unused);
 static void setup_ewmh_atoms();
+static Atom get_atom_prop(Window win, Atom atom);
+static bool sendevent(Window win, Atom proto);
 
 // event handlers
 static void keypress(XEvent *event);
@@ -95,6 +97,7 @@ static void enternotify(XEvent *event);
 static void save_ws(unsigned int ws);
 static void load_ws(unsigned int ws);
 static void switch_ws(Arg arg);
+static void send_to_ws(Arg arg);
 static void ewmh_set_current_desktop(unsigned int ws);
 
 // client operations
@@ -114,11 +117,6 @@ static void apply_window_state(Client *client);
 static void apply_rules(Client *client);
 static void show_clients();
 static void hide_clients();
-
-static void send_to_ws(Arg arg);
-
-static bool sendevent(Window win, Atom proto);
-static Atom get_atom_prop(Window win, Atom atom);
 
 typedef struct Key Key;
 struct Key {
@@ -704,6 +702,7 @@ void change_master_size(Arg arg) {
 void apply_rules(Client *client) {
     XClassHint hints = {NULL, NULL};
     XGetClassHint(dpy, client -> win, &hints);
+    if (hints.res_class == NULL || hints.res_name == NULL) return;
     for (size_t i = 0; i < sizeof(rules) / sizeof(Rule); i ++)
         if ((rules[i].class != NULL && strcmp(rules[i].class, hints.res_class) == 0) ||
             (rules[i].instance != NULL && strcmp(rules[i].instance, hints.res_name) == 0))
