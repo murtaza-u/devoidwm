@@ -17,8 +17,7 @@
 #define MODCLEAN(mask) (mask & \
     (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
 
-#define MOVERESIZE(win, x, y, width, height) \
-    XMoveResizeWindow(dpy, win, x, y, width, height)
+#define MOVERESIZE(win, x, y, width, height) XMoveResizeWindow(dpy, win, x, y, width, height)
 
 #define CHANGEATOMPROP(prop, type, data, nelments) \
     XChangeProperty(dpy, root.win, prop, type, 32, PropModeReplace, data, nelments);
@@ -115,8 +114,8 @@ static void toggle_fullscreen(Arg arg);
 static void change_master_size(Arg arg);
 static void apply_window_state(Client *client);
 static void apply_rules(Client *client);
-static void show_clients();
-static void hide_clients();
+static void show_clients(Client *client);
+static void hide_clients(Client *client);
 
 typedef struct Key Key;
 struct Key {
@@ -261,10 +260,10 @@ void grab() {
         XGrabKey(dpy, XKeysymToKeycode(dpy, keys[i].keysym), keys[i].modifier,
             root.win, True, GrabModeAsync, GrabModeAsync);
 
-    XGrabButton(dpy, 1, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync,
-                GrabModeAsync, None, None);
-    XGrabButton(dpy, 3, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync,
-                GrabModeAsync, None, None);
+    XGrabButton(dpy, 1, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync,
+                None, None);
+    XGrabButton(dpy, 3, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync,
+                None, None);
 }
 
 void loop() {
@@ -291,10 +290,10 @@ void buttonpress(XEvent *event) {
     if(event -> xbutton.subwindow == None ||
         (event -> xbutton.button == 1 && event -> xbutton.button == 3)) return;
 
-    XGrabPointer(dpy, event -> xbutton.subwindow, True,
-        PointerMotionMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None,
-        event -> xbutton.button == 1 ? cursors[CurMove] : cursors[CurResize],
-        CurrentTime);
+    XGrabPointer(dpy, event -> xbutton.subwindow, True, PointerMotionMask|ButtonReleaseMask,
+                 GrabModeAsync, GrabModeAsync, None,
+                 event -> xbutton.button == 1 ? cursors[CurMove] : cursors[CurResize],
+                 CurrentTime);
 
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
     prev_pointer_position = event -> xbutton;
@@ -436,8 +435,11 @@ void tile() {
     pseudohead -> x = margin_left;
     pseudohead -> y = margin_top;
     pseudohead -> height = root.height;
-    pseudohead -> width = (total_clients - floating_clients == 1) ? root.width : (int)(root.width * master_size) - gap/2;
-    MOVERESIZE(pseudohead -> win, pseudohead -> x, pseudohead -> y, pseudohead -> width, pseudohead -> height);
+    pseudohead -> width = (total_clients - floating_clients == 1) ?
+        root.width : (int)(root.width * master_size) - gap/2;
+
+    MOVERESIZE(pseudohead -> win, pseudohead -> x, pseudohead -> y,
+               pseudohead -> width, pseudohead -> height);
 
     tile_slaves(pseudohead);
 }
@@ -591,11 +593,11 @@ void switch_ws(Arg arg) {
 
     // show new clients first
     load_ws(arg.i);
-    show_clients();
+    show_clients(head);
 
     // hide old clients
     load_ws(current_ws);
-    hide_clients();
+    hide_clients(head);
 
     load_ws(arg.i);
     current_ws = arg.i;
@@ -613,8 +615,7 @@ void toggle_fullscreen(Arg arg) {
         focused -> y = 0;
         focused -> width = XDisplayWidth(dpy, screen);
         focused -> height = XDisplayHeight(dpy, screen);
-        MOVERESIZE(focused -> win, focused -> x, focused -> y, focused ->
-                   width, focused -> height);
+        MOVERESIZE(focused -> win, focused -> x, focused -> y, focused -> width, focused -> height);
         CHANGEATOMPROP(net_atoms[NetWMState], XA_ATOM, (unsigned
                        char*)&net_atoms[NetWMStateFullscreen], 1);
         XRaiseWindow(dpy, focused -> win);
@@ -649,8 +650,7 @@ void apply_window_state(Client *client) {
 
     prop = get_atom_prop(client -> win, net_atoms[NetWMState]);
     if (prop == net_atoms[NetWMStateAbove]) client -> isfloating = true;
-    else if (prop == net_atoms[NetWMStateFullscreen])
-        client -> isfullscreen = true;
+    else if (prop == net_atoms[NetWMStateFullscreen]) client -> isfullscreen = true;
 }
 
 Atom get_atom_prop(Window win, Atom atom) {
@@ -658,8 +658,8 @@ Atom get_atom_prop(Window win, Atom atom) {
     unsigned char *prop_ret = NULL;
     int di;
     unsigned long dl;
-    if (XGetWindowProperty(dpy, win, atom, 0, 1, False, XA_ATOM, &da, &di, &dl,
-            &dl, &prop_ret) == Success) {
+    if (XGetWindowProperty(dpy, win, atom, 0, 1, False, XA_ATOM, &da, &di, &dl, &dl, &prop_ret)
+        == Success) {
         if (prop_ret) {
             prop = ((Atom *)prop_ret)[0];
             XFree(prop_ret);
@@ -723,7 +723,7 @@ void send_to_ws(Arg arg) {
         focused -> height = temp -> height;
     } else tile();
 
-    hide_clients();
+    hide_clients(head);
 
     save_ws(arg.i);
     load_ws(current_ws);
@@ -733,14 +733,14 @@ void send_to_ws(Arg arg) {
     XSync(dpy, True);
 }
 
-void show_clients() {
-    Client *client = head;
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
-        XMoveWindow(dpy, client -> win, client -> x, client -> y);
+void show_clients(Client *client) {
+    if (client == NULL) return;
+    XMoveWindow(dpy, client -> win, client -> x, client -> y);
+    show_clients(client -> next);
 }
 
-void hide_clients() {
-    Client *client = head;
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
-        XMoveWindow(dpy, client -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
+void hide_clients(Client *client) {
+    if (client == NULL) return;
+    hide_clients(client -> next);
+    XMoveWindow(dpy, client -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
 }
