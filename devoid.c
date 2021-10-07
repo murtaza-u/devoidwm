@@ -519,12 +519,14 @@ void zoom(Arg arg) {
     (void)arg;
     swap(focused, head);
     focus(head);
+    XSync(dpy, True);
 }
 
 void move_client(Arg arg) {
     (void)arg;
     swap(focused, arg.i == 1 ? focused -> next : focused -> prev);
     focus(arg.i == 1 ? focused -> next : focused -> prev);
+    XSync(dpy, True);
 }
 
 void configurerequest(XEvent *event) {
