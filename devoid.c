@@ -116,7 +116,6 @@ static void apply_window_state(Client *client);
 static void apply_rules(Client *client);
 static void show_clients();
 static void hide_clients();
-static void apply_window_attributes(Client *client);
 static Client* win_to_client(Window win);
 
 typedef struct Key Key;
@@ -514,18 +513,18 @@ void swap(Client *focused_client, Client *target_client) {
                focused_client -> width, focused_client -> height);
     MOVERESIZE(target_client -> win, target_client -> x, target_client -> y,
                target_client -> width, target_client -> height);
-
-    focus(target_client);
 }
 
 void zoom(Arg arg) {
     (void)arg;
     swap(focused, head);
+    focus(head);
 }
 
 void move_client(Arg arg) {
     (void)arg;
     swap(focused, arg.i == 1 ? focused -> next : focused -> prev);
+    focus(arg.i == 1 ? focused -> next : focused -> prev);
 }
 
 void configurerequest(XEvent *event) {
@@ -741,13 +740,6 @@ void hide_clients() {
     Client *client = head;
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
         XMoveWindow(dpy, client -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
-}
-
-void apply_window_attributes(Client *client) {
-    client -> x = attr.x;
-    client -> y = attr.y;
-    client -> width = attr.width;
-    client -> height = attr.height;
 }
 
 Client* win_to_client(Window win) {
