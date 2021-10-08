@@ -1,3 +1,6 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
 // maximum no. of workspaces
 #define MAX_WORKSPACES 9
 
@@ -6,7 +9,10 @@ static unsigned int margin_top = 6;
 static unsigned int margin_right = 6;
 static unsigned int margin_bottom = 6;
 static unsigned int margin_left = 6;
-static unsigned int gap = 18; // gap between 2 windows
+static unsigned int gap = 10; // gap between 2 windows
+static char focused_border_color[] = "#ffffff";
+static char normal_border_color[] = "#10151a";
+static unsigned int border_width = 1;
 
 static const Rule rules[] = {
     /* xprop:
@@ -74,3 +80,5 @@ static const Key keys[] = {
     {MODKEY|ShiftMask, XK_8, send_to_ws, {.i = 7}},
     {MODKEY|ShiftMask, XK_9, send_to_ws, {.i = 8}},
 };
+
+#endif

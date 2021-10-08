@@ -70,6 +70,7 @@ static XButtonEvent prev_pointer_position;
 static int screen;
 static bool isrunning;
 static bool fullscreen_lock;
+static unsigned int focused_border_px, normal_border_px;
 
 static void quit(Arg arg);
 static void die(char *exit_msg);
@@ -82,6 +83,7 @@ static void sigchld(int unused);
 static void setup_ewmh_atoms();
 static Atom get_atom_prop(Window win, Atom atom);
 static bool sendevent(Window win, Atom proto);
+static unsigned int getcolor(const char *color);
 
 // event handlers
 static void keypress(XEvent *event);
@@ -204,6 +206,13 @@ void start() {
 
     // set EWMH atoms
     setup_ewmh_atoms();
+
+    // initialising colors
+    focused_border_px = getcolor(focused_border_color);
+    normal_border_px = getcolor(normal_border_color);
+
+    // A minimum gap between 2 windows in order to fit the border
+    gap += border_width * 2;
 }
 
 void setup_ewmh_atoms() {
@@ -455,7 +464,7 @@ void tile_slaves(Client *pseudohead) {
             i--;
             continue;
         };
-        client -> x = (int)(root.width * master_size) + gap/2;
+        client -> x = (int)(root.width * master_size) + gap/2 + margin_left;
         client -> y = i == 0 ? margin_top : margin_top + i * (height + gap);
         client -> width = (int)(root.width * (1 - master_size)) - gap/2;
         client -> height = height;
@@ -464,8 +473,17 @@ void tile_slaves(Client *pseudohead) {
 }
 
 void focus(Client *client) {
+    if (client == NULL) return;
     focused = client;
-    if (focused == NULL) return;
+
+    client = head;
+    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
+        if (client -> win == focused -> win) {
+            XSetWindowBorderWidth(dpy, client -> win, border_width);
+            XSetWindowBorder(dpy, client -> win, focused_border_px);
+        } else XSetWindowBorder(dpy, client -> win, normal_border_px);
+    }
+
     XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
     if (focused -> isfloating) XRaiseWindow(dpy, focused -> win);
     CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&focused -> win, 1)
@@ -749,4 +767,13 @@ Client* win_to_client(Window win) {
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
         if (client -> win == win) return client;
     return NULL;
+}
+
+unsigned int getcolor(const char *color) {
+    XColor c;
+    Colormap colormap = DefaultColormap(dpy, screen);
+    if (!XAllocNamedColor(dpy, colormap, color, &c, &c))
+        die("invalid color");
+
+    return c.pixel;
 }
