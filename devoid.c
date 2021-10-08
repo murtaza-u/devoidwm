@@ -636,7 +636,11 @@ void toggle_fullscreen(Arg arg) {
         CHANGEATOMPROP(net_atoms[NetWMState], XA_ATOM, (unsigned
                        char*)&net_atoms[NetWMStateFullscreen], 1);
         XRaiseWindow(dpy, focused -> win);
-    } else tile();
+        XSetWindowBorderWidth(dpy, focused -> win, 0);
+    } else {
+        XSetWindowBorderWidth(dpy, focused -> win, border_width);
+        tile();
+    }
 
     fullscreen_lock = !fullscreen_lock;
     focused -> isfullscreen = fullscreen_lock;
