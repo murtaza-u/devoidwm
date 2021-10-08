@@ -31,4 +31,6 @@ check out [lemonaid](https://github.com/Murtaza-Udaipurwala/lemonaid)
 
 - More features will be added sooner or later. All pull requests are welcomed.
 
+- Multi-monitor support is current lacking.
+
 - Some function implementation is taken from other window managers like `dwm` and `catwm`
