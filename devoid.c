@@ -1,4 +1,3 @@
-#include <X11/X.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -94,6 +93,7 @@ static void maprequest(XEvent *event);
 static void destroynotify(XEvent *event);
 static void configurerequest(XEvent *event);
 static void enternotify(XEvent *event);
+static void clientmessage(XEvent *event);
 
 static void save_ws(unsigned int ws);
 static void load_ws(unsigned int ws);
@@ -147,6 +147,7 @@ static void (*handle_events[LASTEvent])(XEvent *event) = {
     [ConfigureRequest] = configurerequest,
     [DestroyNotify] = destroynotify,
     [EnterNotify] = enternotify,
+    [ClientMessage] = clientmessage,
 };
 
 int main() {
@@ -339,10 +340,7 @@ void buttonrelease(XEvent *event) {
 }
 
 void maprequest(XEvent *event) {
-    if (fullscreen_lock) {
-        Arg arg = {0};
-        toggle_fullscreen(arg);
-    }
+    if (fullscreen_lock) toggle_fullscreen((Arg){0});
 
     XMapRequestEvent *ev = &event -> xmaprequest;
 
@@ -350,7 +348,7 @@ void maprequest(XEvent *event) {
     if (attr.override_redirect) return; // docs says window managers must ignore such windows
 
     // emit DestroyNotify and EnterNotify event
-    XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask);
+    XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask|PropertyChangeMask);
 
     // For pinentry-gtk (and maybe some other programs)
     Client *client = head;
@@ -365,10 +363,8 @@ void maprequest(XEvent *event) {
     add_client(ev -> window);
     focus(focused);
 
-    if (focused -> isfullscreen) {
-        Arg arg = {0};
-        toggle_fullscreen(arg);
-    } else if (focused -> isfloating) {
+    if (focused -> isfullscreen) toggle_fullscreen((Arg){0});
+    else if (focused -> isfloating) {
         XGetWindowAttributes(dpy, focused -> win, &attr);
         apply_window_state(focused);
     } else tile();
@@ -377,10 +373,7 @@ void maprequest(XEvent *event) {
 }
 
 void destroynotify(XEvent *event) {
-    if (fullscreen_lock) {
-        Arg arg = {0};
-        toggle_fullscreen(arg);
-    }
+    if (fullscreen_lock) toggle_fullscreen((Arg){0});
 
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     remove_client(ev -> window);
@@ -400,6 +393,18 @@ void enternotify(XEvent *event) {
         }
         client = client -> next;
     } while (client != NULL && client != head);
+}
+
+void clientmessage(XEvent *event) {
+	XClientMessageEvent *client_msg_event = &event -> xclient;
+	Client *client = win_to_client(client_msg_event -> window);
+
+	if (!client) return;
+    if (client_msg_event -> message_type == net_atoms[NetWMState]) {
+        if ((unsigned int long)client_msg_event -> data.l[1] == net_atoms[NetWMStateFullscreen] ||
+            (unsigned int long)client_msg_event -> data.l[2] == net_atoms[NetWMStateFullscreen])
+            toggle_fullscreen((Arg){0});
+    }
 }
 
 void add_client(Window win) {
