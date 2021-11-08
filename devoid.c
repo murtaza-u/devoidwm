@@ -437,7 +437,7 @@ void add_client(Window win) {
 }
 
 void tile() {
-    if (head == NULL) return;
+    if (head == NULL || total_clients == floating_clients) return;
 
     unsigned int tiled_clients = total_clients - floating_clients;
     unsigned int pseudonmaster = nmaster <= tiled_clients ? nmaster : tiled_clients;
