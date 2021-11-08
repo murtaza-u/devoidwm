@@ -13,6 +13,7 @@ static unsigned int gap = 10; // gap between 2 windows
 static char focused_border_color[] = "#ffffff";
 static char normal_border_color[] = "#10151a";
 static unsigned int border_width = 1;
+static unsigned int nmaster = 1;
 
 static const Rule rules[] = {
     /* xprop:
@@ -79,6 +80,9 @@ static const Key keys[] = {
     {MODKEY|ShiftMask, XK_7, send_to_ws, {.i = 6}},
     {MODKEY|ShiftMask, XK_8, send_to_ws, {.i = 7}},
     {MODKEY|ShiftMask, XK_9, send_to_ws, {.i = 8}},
+
+    {MODKEY, XK_i, incmaster, {.i = 1}},
+    {MODKEY, XK_d, incmaster, {.i = -1}},
 };
 
 #endif

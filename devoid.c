@@ -105,7 +105,7 @@ static void ewmh_set_current_desktop(unsigned int ws);
 static void add_client(Window win);
 static void remove_client(Window win);
 static void tile();
-static void tile_slaves(Client *pseudohead);
+static void tile_slaves(Client *pseudohead, unsigned int slavecount);
 static void focus(Client *client);
 static void focus_adjacent(Arg arg);
 static void swap(Client *focused_client, Client *target_client);
@@ -119,6 +119,7 @@ static void apply_rules(Client *client);
 static void show_clients();
 static void hide_clients();
 static Client* win_to_client(Window win);
+static void incmaster(Arg arg);
 
 typedef struct Key Key;
 struct Key {
@@ -438,39 +439,38 @@ void add_client(Window win) {
 void tile() {
     if (head == NULL) return;
 
+    unsigned int tiled_clients = total_clients - floating_clients;
+    unsigned int pseudonmaster = nmaster <= tiled_clients ? nmaster : tiled_clients;
+    unsigned int height = (root.height - (pseudonmaster - 1) * gap) / pseudonmaster;
+
     Client *pseudohead = head;
-    while (pseudohead -> isfloating) {
-        pseudohead = pseudohead -> next;
-        if (pseudohead == NULL || pseudohead == head) return;
+    for (unsigned int i = 0; i < pseudonmaster; i ++) {
+        pseudohead = i == 0 ? head : pseudohead -> next;
+        while (pseudohead -> isfloating) pseudohead = pseudohead -> next;
+
+        pseudohead -> x = margin_left;
+        pseudohead -> y = margin_top + i * (height + gap);
+        pseudohead -> width = tiled_clients == pseudonmaster ?
+                              root.width :
+                              (int)(root.width * master_size) - gap/2;
+        pseudohead -> height = height;
+
+        MOVERESIZE(pseudohead -> win, pseudohead -> x, pseudohead -> y,
+                   pseudohead -> width, pseudohead -> height);
     }
 
-    pseudohead -> x = margin_left;
-    pseudohead -> y = margin_top;
-    pseudohead -> height = root.height;
-    pseudohead -> width = (total_clients - floating_clients == 1) ?
-        root.width : (int)(root.width * master_size) - gap/2;
-
-    MOVERESIZE(pseudohead -> win, pseudohead -> x, pseudohead -> y,
-               pseudohead -> width, pseudohead -> height);
-
-    tile_slaves(pseudohead);
+    tile_slaves(pseudohead, tiled_clients - pseudonmaster);
 }
 
-// things you do for gaps
-void tile_slaves(Client *pseudohead) {
-    int slavecount = total_clients - floating_clients - 1;
+void tile_slaves(Client *pseudohead, unsigned int slavecount) {
     if (slavecount == 0) return;
-
     Client *client = pseudohead -> next;
     unsigned int height = (root.height - (slavecount - 1) * gap) / slavecount;
 
-    for (int i = 0; i < slavecount; i ++, client = client -> next) {
-        if (client -> isfloating) {
-            i--;
-            continue;
-        };
+    for (unsigned int i = 0; i < slavecount; i ++, client = client -> next) {
+        while (client -> isfloating) client = client -> next;
         client -> x = (int)(root.width * master_size) + gap/2 + margin_left;
-        client -> y = i == 0 ? margin_top : margin_top + i * (height + gap);
+        client -> y = margin_top + i * (height + gap);
         client -> width = (int)(root.width * (1 - master_size)) - gap/2;
         client -> height = height;
         MOVERESIZE(client -> win, client -> x, client -> y, client -> width, client -> height);
@@ -785,4 +785,11 @@ unsigned int getcolor(const char *color) {
         die("invalid color");
 
     return c.pixel;
+}
+
+void incmaster(Arg arg) {
+    if (nmaster + arg.i <= total_clients - floating_clients && nmaster + arg.i >= 1) {
+        nmaster += arg.i;
+        tile();
+    }
 }
