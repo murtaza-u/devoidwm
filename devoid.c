@@ -302,10 +302,11 @@ void buttonpress(XEvent *event) {
     if(event -> xbutton.subwindow == None ||
         (event -> xbutton.button == 1 && event -> xbutton.button == 3)) return;
 
-    XGrabPointer(dpy, event -> xbutton.subwindow, True, PointerMotionMask|ButtonReleaseMask,
+    if (XGrabPointer(dpy, event -> xbutton.subwindow, True, PointerMotionMask|ButtonReleaseMask,
                  GrabModeAsync, GrabModeAsync, None,
                  event -> xbutton.button == 1 ? cursors[CurMove] : cursors[CurResize],
-                 CurrentTime);
+                 CurrentTime) != GrabSuccess)
+        return;
 
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
     prev_pointer_position = event -> xbutton;
@@ -331,7 +332,7 @@ void motionnotify(XEvent *event) {
     focused -> width = MAX(1, attr.width + (isLeftClick ? 0 : dx));
     focused -> height = MAX(1, attr.height + (isLeftClick ? 0 : dx));
 
-    MOVERESIZE(event -> xmotion.window, focused -> x, focused -> y,
+    MOVERESIZE(focused -> win, focused -> x, focused -> y,
                focused -> width, focused -> height);
 }
 
