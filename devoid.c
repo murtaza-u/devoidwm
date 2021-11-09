@@ -100,6 +100,7 @@ static void save_ws(unsigned int ws);
 static void load_ws(unsigned int ws);
 static void switch_ws(Arg arg);
 static void send_to_ws(Arg arg);
+static void send_and_switch_ws(Arg arg);
 static void ewmh_set_current_desktop(unsigned int ws);
 
 /* client operations */
@@ -820,4 +821,9 @@ void incmaster(Arg arg) {
         nmaster += arg.i;
         tile();
     }
+}
+
+void send_and_switch_ws(Arg arg) {
+    send_to_ws(arg);
+    switch_ws(arg);
 }
