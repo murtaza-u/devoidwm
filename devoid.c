@@ -30,6 +30,7 @@ struct Client {
     Client *next, *prev;
     Window win;
     bool isfullscreen, isfloating;
+    unsigned int ws;
 };
 
 struct {
@@ -375,7 +376,7 @@ void maprequest(XEvent *event) {
 }
 
 void destroynotify(XEvent *event) {
-    if (fullscreen_lock) toggle_fullscreen((Arg){0});
+    /* if (fullscreen_lock) toggle_fullscreen((Arg){0}); */
 
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     remove_client(ev -> window);
@@ -435,6 +436,7 @@ void add_client(Window win) {
     apply_window_state(focused);
     apply_rules(focused);
     if (focused -> isfloating) floating_clients ++;
+    focused -> ws = current_ws;
 }
 
 void tile() {
@@ -502,28 +504,38 @@ void focus_adjacent(Arg arg) {
 }
 
 void remove_client(Window win) {
-    Client *client = head;
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
-        if (client -> win != win) continue;
+    Client *client;
+    if (!(client = win_to_client(win))) return;
 
-        if (client == head) head = head -> next;
+    save_ws(current_ws);
 
-        if (client -> next == NULL) break;
-        else if (client -> next -> next == client) {
+    unsigned int temp_ws = client -> ws;
+    load_ws(temp_ws);
+    if (fullscreen_lock) toggle_fullscreen((Arg){0});
+
+    if (client == head) head = head -> next;
+
+    if (client -> next != NULL) {
+        if (client -> next -> next == client) {
             client -> next -> next = NULL;
             client -> next -> prev = NULL;
         } else {
             client -> next -> prev = client -> prev;
             client -> prev -> next = client -> next;
         }
-        break;
     }
 
-    if (client == NULL) return;
-    if (client -> isfloating) floating_clients --;
-    focused = client -> prev;
-    free(client);
     total_clients --;
+
+    if (client -> isfloating) floating_clients --;
+    else tile();
+
+    if (focused -> win == client -> win) focused = client -> prev;
+
+    free(client);
+    hide_clients();
+    save_ws(temp_ws);
+    load_ws(current_ws);
 }
 
 void swap(Client *focused_client, Client *target_client) {
@@ -739,6 +751,7 @@ void apply_rules(Client *client) {
 void send_to_ws(Arg arg) {
     if ((unsigned int)arg.i == current_ws || focused == NULL) return;
 
+    focused -> ws = arg.i;
     Client *temp = focused;
     save_ws(current_ws);
     load_ws(arg.i);
@@ -773,9 +786,19 @@ void hide_clients() {
 }
 
 Client* win_to_client(Window win) {
-    Client *client = head;
-    for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
-        if (client -> win == win) return client;
+    save_ws(current_ws);
+
+    for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
+        load_ws(i);
+        Client *client = head;
+        for (unsigned int i = 0; i < total_clients; i ++, client = client -> next)
+            if (client -> win == win) {
+                load_ws(current_ws);
+                return client;
+            }
+    }
+
+    load_ws(current_ws);
     return NULL;
 }
 
