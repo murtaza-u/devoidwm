@@ -50,13 +50,13 @@ struct Rule {
     bool isfloating;
 };
 
-// EWMH atoms
+/* EWMH atoms */
 enum { NetSupported, NetCurrentDesktop, NetNumberOfDesktops, NetWMWindowType,
     NetWMWindowTypeDialog, NetWMWindowTypeMenu, NetWMWindowTypeSplash,
     NetWMWindowTypeToolbar, NetWMWindowTypeUtility, NetWMState,
     NetWMStateFullscreen, NetWMStateAbove, NetActiveWindow, NetLast };
 
-// cursors
+/* cursors */
 enum { CurNormal, CurResize, CurMove, CurLast };
 
 static Atom net_atoms[NetLast];
@@ -85,7 +85,7 @@ static Atom get_atom_prop(Window win, Atom atom);
 static bool sendevent(Window win, Atom proto);
 static unsigned int getcolor(const char *color);
 
-// event handlers
+/* event handlers */
 static void keypress(XEvent *event);
 static void buttonpress(XEvent *event);
 static void buttonrelease(XEvent *event);
@@ -102,7 +102,7 @@ static void switch_ws(Arg arg);
 static void send_to_ws(Arg arg);
 static void ewmh_set_current_desktop(unsigned int ws);
 
-// client operations
+/* client operations */
 static void add_client(Window win);
 static void remove_client(Window win);
 static void tile();
@@ -168,53 +168,53 @@ void start() {
     if (!(dpy = XOpenDisplay(0)))
         die("failed to open display");
 
-    // install a sigchl handler
+    /* install a sigchl handler */
     sigchld(0);
     XSetErrorHandler(ignore);
 
-    // the default screen
+    /* the default screen */
     screen = DefaultScreen(dpy);
 
-    // root window
+    /* root window */
     root.win = DefaultRootWindow(dpy);
     root.width = XDisplayWidth(dpy, screen) - (margin_left + margin_right);
     root.height = XDisplayHeight(dpy, screen) - (margin_top + margin_bottom);
 
-    // for quiting wm
+    /* for quiting wm */
     isrunning = true;
 
-    // fullscreen lock
+    /* fullscreen lock */
     fullscreen_lock = false;
 
     head = focused = NULL;
     total_clients = floating_clients = 0;
 
-    // get MapRequest events
+    /* get MapRequest events */
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
 
-    // set cursors
+    /* set cursors */
     cursors[CurNormal] = XCreateFontCursor(dpy, XC_left_ptr);
     cursors[CurResize] = XCreateFontCursor(dpy, XC_sizing);
     cursors[CurMove] = XCreateFontCursor(dpy, XC_fleur);
 
-    // define the cursor
+    /* define the cursor */
 	XDefineCursor(dpy, root.win, cursors[CurNormal]);
 
-    // initialise workspaces
+    /* initialise workspaces */
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
         workspaces[i].focused = workspaces[i].head = NULL;
         workspaces[i].total_clients = workspaces[i].floating_clients = 0;
         workspaces[i].fullscreen_lock = false;
     }
 
-    // set EWMH atoms
+    /* set EWMH atoms */
     setup_ewmh_atoms();
 
-    // initialising colors
+    /* initialising colors */
     focused_border_px = getcolor(focused_border_color);
     normal_border_px = getcolor(normal_border_color);
 
-    // A minimum gap between 2 windows in order to fit the border
+    /* A minimum gap between 2 windows in order to fit the border */
     gap += border_width * 2;
 }
 
@@ -234,7 +234,7 @@ void setup_ewmh_atoms() {
     net_atoms[NetActiveWindow] = GETATOMIDENTIFIER("_NET_ACTIVE_WINDOW");
 
     CHANGEATOMPROP(net_atoms[NetSupported], XA_ATOM, (unsigned char *)net_atoms ,NetLast);
-    ewmh_set_current_desktop(0); // set the default workspace
+    ewmh_set_current_desktop(0); /* set the default workspace */
 
     unsigned long data[1];
     data[0] = MAX_WORKSPACES;
@@ -245,7 +245,7 @@ void stop() {
     unsigned int n;
     Window root_return, parent_return, *children;
 
-    // Kill every last one of them
+    /* Kill every last one of them */
     if (XQueryTree(dpy, root.win, &parent_return, &root_return, &children, &n))
         for (unsigned int i = 0; i < n; i ++)
             sendevent(children[i], XInternAtom(dpy, "WM_DELETE_WINDOW", True));
@@ -261,7 +261,7 @@ int ignore() {
     return 0;
 }
 
-// Taken from dwm
+/* Taken from dwm */
 void sigchld(int unused) {
     (void)unused;
     if(signal(SIGCHLD, sigchld) == SIG_ERR) die("Can't install SIGCHLD handler");
@@ -304,9 +304,9 @@ void buttonpress(XEvent *event) {
         (event -> xbutton.button == 1 && event -> xbutton.button == 3)) return;
 
     if (XGrabPointer(dpy, event -> xbutton.subwindow, True, PointerMotionMask|ButtonReleaseMask,
-                 GrabModeAsync, GrabModeAsync, None,
-                 event -> xbutton.button == 1 ? cursors[CurMove] : cursors[CurResize],
-                 CurrentTime) != GrabSuccess)
+                     GrabModeAsync, GrabModeAsync, None,
+                     event -> xbutton.button == 1 ? cursors[CurMove] : cursors[CurResize],
+                     CurrentTime) != GrabSuccess)
         return;
 
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
@@ -331,7 +331,7 @@ void motionnotify(XEvent *event) {
     focused -> x = attr.x + (isLeftClick ? dx : 0);
     focused -> y = attr.y + (isLeftClick ? dy : 0);
     focused -> width = MAX(1, attr.width + (isLeftClick ? 0 : dx));
-    focused -> height = MAX(1, attr.height + (isLeftClick ? 0 : dx));
+    focused -> height = MAX(1, attr.height + (isLeftClick ? 0 : dy));
 
     MOVERESIZE(focused -> win, focused -> x, focused -> y,
                focused -> width, focused -> height);
@@ -348,12 +348,12 @@ void maprequest(XEvent *event) {
     XMapRequestEvent *ev = &event -> xmaprequest;
 
     XGetWindowAttributes(dpy, ev -> window, &attr);
-    if (attr.override_redirect) return; // docs says window managers must ignore such windows
+    if (attr.override_redirect) return; /* docs says window managers must ignore such windows */
 
-    // emit DestroyNotify and EnterNotify event
+    /* emit DestroyNotify and EnterNotify event */
     XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask|PropertyChangeMask);
 
-    // For pinentry-gtk (and maybe some other programs)
+    /* For pinentry-gtk (and maybe some other programs) */
     Client *client = head;
     for(unsigned int i = 0; i < total_clients; i++, client = client -> next)
         if(ev -> window == client -> win) {
@@ -417,7 +417,7 @@ void add_client(Window win) {
 
     new_client -> win = win;
 
-    // insert new_client in circular doubly linked list
+    /* insert new_client in circular doubly linked list */
     if (head == NULL) {
         head = new_client;
         head -> next = head -> prev = NULL;
@@ -590,9 +590,9 @@ void kill_client(Arg arg) {
     (void)arg;
     if (focused == NULL) return;
 
-    // send kill signal to window
+    /* send kill signal to window */
     if (!sendevent(focused -> win, XInternAtom(dpy, "WM_DELETE_WINDOW", True))) {
-        // If the client rejects it, we close it down the brutal way
+        /* If the client rejects it, we close it down the brutal way */
         XGrabServer(dpy);
         XSetCloseDownMode(dpy, DestroyAll);
         XKillClient(dpy, focused -> win);
@@ -626,11 +626,11 @@ void switch_ws(Arg arg) {
      * Also helps minimize screen flicker
      */
 
-    // show new clients first
+    /* show new clients first */
     load_ws(arg.i);
     show_clients();
 
-    // hide old clients
+    /* hide old clients */
     load_ws(current_ws);
     hide_clients();
 
@@ -707,7 +707,7 @@ Atom get_atom_prop(Window win, Atom atom) {
     return prop;
 }
 
-// Taken from dwm
+/* Taken from dwm */
 bool sendevent(Window win, Atom proto) {
     int n;
     Atom *protocols;
