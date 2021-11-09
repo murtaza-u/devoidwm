@@ -105,6 +105,7 @@ static void ewmh_set_current_desktop(unsigned int ws);
 /* client operations */
 static void add_client(Window win);
 static void remove_client(Window win);
+static void detach(Client *client);
 static void tile();
 static void tile_slaves(Client *pseudohead, unsigned int slavecount);
 static void focus(Client *client);
@@ -513,6 +514,13 @@ void remove_client(Window win) {
     load_ws(temp_ws);
     if (fullscreen_lock) toggle_fullscreen((Arg){0});
 
+    detach(client);
+    hide_clients();
+    save_ws(temp_ws);
+    load_ws(current_ws);
+}
+
+void detach(Client *client) {
     if (client == head) head = head -> next;
 
     if (client -> next != NULL) {
@@ -531,11 +539,7 @@ void remove_client(Window win) {
     else tile();
 
     if (focused -> win == client -> win) focused = client -> prev;
-
     free(client);
-    hide_clients();
-    save_ws(temp_ws);
-    load_ws(current_ws);
 }
 
 void swap(Client *focused_client, Client *target_client) {
@@ -751,11 +755,11 @@ void apply_rules(Client *client) {
 void send_to_ws(Arg arg) {
     if ((unsigned int)arg.i == current_ws || focused == NULL) return;
 
-    focused -> ws = arg.i;
     Client *temp = focused;
     save_ws(current_ws);
     load_ws(arg.i);
     add_client(temp -> win);
+    focused -> ws = arg.i;
     if (focused -> isfloating) {
         focused -> x = temp -> x;
         focused -> y = temp -> y;
@@ -767,9 +771,9 @@ void send_to_ws(Arg arg) {
 
     save_ws(arg.i);
     load_ws(current_ws);
-    remove_client(temp -> win);
+
+    detach(temp);
     focus(focused);
-    tile();
     XSync(dpy, True);
 }
 
