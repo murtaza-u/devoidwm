@@ -4,16 +4,25 @@
 /* maximum no. of workspaces */
 #define MAX_WORKSPACES 9
 
-static float master_size = 0.6; /* size of the master window range -> (0, 1) */
+/* size of the master window range -> (0, 1) */
+static float master_size = 0.6;
+
+/* no. of windows in the master area */
+static unsigned int nmaster = 1;
+
+/* margin */
 static unsigned int margin_top = 6;
 static unsigned int margin_right = 6;
 static unsigned int margin_bottom = 6;
 static unsigned int margin_left = 6;
-static unsigned int gap = 10; /* gap between 2 windows */
+
+/* gap between 2 windows */
+static unsigned int gap = 10;
+
+/* Border around windows */
 static char focused_border_color[] = "#ffffff";
 static char normal_border_color[] = "#10151a";
 static unsigned int border_width = 1;
-static unsigned int nmaster = 1;
 
 static const Rule rules[] = {
     /* xprop:
