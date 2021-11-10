@@ -183,7 +183,7 @@ void start() {
     root.height = XDisplayHeight(dpy, screen) - (margin_top + margin_bottom);
 
     /* for quiting wm */
-    isrunning = true;
+    isrunning = 1;
 
     /* fullscreen lock */
     fullscreen_lock = false;
@@ -317,7 +317,7 @@ void buttonpress(XEvent *event) {
     Client *client;
     if ((client = win_to_client(event -> xbutton.subwindow))) {
         if (!client -> isfloating) {
-            client -> isfloating = true;
+            client -> isfloating = 1;
             floating_clients ++;
             tile();
         }
@@ -371,7 +371,10 @@ void maprequest(XEvent *event) {
     if (focused -> isfullscreen) toggle_fullscreen((Arg){0});
     else if (focused -> isfloating) {
         XGetWindowAttributes(dpy, focused -> win, &attr);
-        apply_window_state(focused);
+        focused -> x = attr.x;
+        focused -> y = attr.y;
+        focused -> width = attr.width;
+        focused -> height = attr.height;
     } else tile();
 
     XSync(dpy, True);
@@ -688,13 +691,13 @@ void apply_window_state(Client *client) {
             prop == net_atoms[NetWMWindowTypeSplash] ||
             prop == net_atoms[NetWMWindowTypeToolbar] ||
             prop == net_atoms[NetWMWindowTypeUtility]) {
-        client -> isfloating = true;
+        client -> isfloating = 1;
         return;
     }
 
     prop = get_atom_prop(client -> win, net_atoms[NetWMState]);
-    if (prop == net_atoms[NetWMStateAbove]) client -> isfloating = true;
-    else if (prop == net_atoms[NetWMStateFullscreen]) client -> isfullscreen = true;
+    if (prop == net_atoms[NetWMStateAbove]) client -> isfloating = 1;
+    else if (prop == net_atoms[NetWMStateFullscreen]) client -> isfullscreen = 1;
 }
 
 Atom get_atom_prop(Window win, Atom atom) {

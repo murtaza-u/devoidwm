@@ -31,7 +31,7 @@ static const Rule rules[] = {
      */
 
     /* class        title       isfloating */
-    {"Gcolor3",     NULL,       true},
+    {"Gcolor3",     NULL,       1},
 };
 
 /* Mod4Mask -> super key
