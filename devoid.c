@@ -526,9 +526,10 @@ void manage(Client *client, int ws, bool apply, bool change_focus) {
 }
 
 void unmanage(Client *client, bool free_client, bool change_focus) {
-    if (fullscreen_lock) toggle_fullscreen((Arg){0});
-
     total_clients --;
+
+    if (client -> isfullscreen) fullscreen_lock = 0;
+    else if (fullscreen_lock) toggle_fullscreen((Arg){0});
 
     if (client -> isfloating) floating_clients --;
     else tile();
