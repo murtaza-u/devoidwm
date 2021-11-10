@@ -348,8 +348,6 @@ void buttonrelease(XEvent *event) {
 }
 
 void maprequest(XEvent *event) {
-    if (fullscreen_lock) toggle_fullscreen((Arg){0});
-
     XMapRequestEvent *ev = &event -> xmaprequest;
 
     XGetWindowAttributes(dpy, ev -> window, &attr);
@@ -452,6 +450,7 @@ void focus(Client *client) {
     client = head;
     for (unsigned int i = 0; i < total_clients; i ++, client = client -> next) {
         if (client -> win == focused -> win) {
+            if (focused -> isfullscreen) continue;
             XSetWindowBorderWidth(dpy, client -> win, border_width);
             XSetWindowBorder(dpy, client -> win, focused_border_px);
         } else XSetWindowBorder(dpy, client -> win, normal_border_px);
@@ -499,6 +498,8 @@ void detach(Client *client) {
 }
 
 void manage(Client *client, int ws, bool apply, bool change_focus) {
+    if (fullscreen_lock) toggle_fullscreen((Arg){0});
+
     total_clients ++;
 
     if (apply) {
