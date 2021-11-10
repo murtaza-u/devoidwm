@@ -30,8 +30,9 @@ static const Rule rules[] = {
      * WM_NAME(STRING) = title
      */
 
-    /* class        title       isfloating */
-    {"Gcolor3",     NULL,       1},
+    /* class            title       isfloating      isfullscreen */
+    {"Gcolor3",         NULL,       1,              0            },
+    {"mpv",             NULL,       0,              1            },
 };
 
 /* Mod4Mask -> super key

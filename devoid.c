@@ -47,7 +47,7 @@ union Arg {
 typedef struct Rule Rule;
 struct Rule {
     char *class, *instance;
-    bool isfloating;
+    bool isfloating, isfullscreen;
 };
 
 /* EWMH atoms */
@@ -368,8 +368,10 @@ void maprequest(XEvent *event) {
     add_client(ev -> window);
     focus(focused);
 
-    if (focused -> isfullscreen) toggle_fullscreen((Arg){0});
-    else if (focused -> isfloating) {
+    if (focused -> isfullscreen) {
+        focused -> isfullscreen = 0;
+        toggle_fullscreen((Arg){0});
+    } else if (focused -> isfloating) {
         XGetWindowAttributes(dpy, focused -> win, &attr);
         focused -> x = attr.x;
         focused -> y = attr.y;
@@ -381,7 +383,7 @@ void maprequest(XEvent *event) {
 }
 
 void destroynotify(XEvent *event) {
-    /* if (fullscreen_lock) toggle_fullscreen((Arg){0}); */
+    if (fullscreen_lock) toggle_fullscreen((Arg){0});
 
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     remove_client(ev -> window);
@@ -750,10 +752,13 @@ void apply_rules(Client *client) {
     XClassHint hints = {NULL, NULL};
     XGetClassHint(dpy, client -> win, &hints);
     if (hints.res_class == NULL || hints.res_name == NULL) return;
-    for (size_t i = 0; i < sizeof(rules) / sizeof(Rule); i ++)
+    for (size_t i = 0; i < sizeof(rules) / sizeof(Rule); i ++) {
         if ((rules[i].class != NULL && strcmp(rules[i].class, hints.res_class) == 0) ||
-            (rules[i].instance != NULL && strcmp(rules[i].instance, hints.res_name) == 0))
+            (rules[i].instance != NULL && strcmp(rules[i].instance, hints.res_name) == 0)) {
             client -> isfloating = rules[i].isfloating;
+            client -> isfullscreen = rules[i].isfullscreen;
+        }
+    }
 }
 
 void send_to_ws(Arg arg) {
