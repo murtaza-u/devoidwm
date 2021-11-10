@@ -104,9 +104,12 @@ static void send_and_switch_ws(Arg arg);
 static void ewmh_set_current_desktop(unsigned int ws);
 
 /* client operations */
+static void attach(Client *client);
+static void detach(Client *client);
+static void manage(Client *client, int ws, bool apply, bool change_focus);
+static void unmanage(Client *client, bool free_client, bool change_focus);
 static void add_client(Window win);
 static void remove_client(Window win);
-static void detach(Client *client);
 static void tile();
 static void tile_slaves(Client *pseudohead, unsigned int slavecount);
 static void focus(Client *client);
@@ -357,38 +360,22 @@ void maprequest(XEvent *event) {
 
     /* For pinentry-gtk (and maybe some other programs) */
     Client *client = head;
-    for(unsigned int i = 0; i < total_clients; i++, client = client -> next)
+    for(unsigned int i = 0; i < total_clients; i++, client = client -> next) {
         if(ev -> window == client -> win) {
             XMapWindow(dpy, ev -> window);
             focus(client);
             return;
         }
+    }
 
     XMapWindow(dpy, ev -> window);
     add_client(ev -> window);
-    focus(focused);
-
-    if (focused -> isfullscreen) {
-        focused -> isfullscreen = 0;
-        toggle_fullscreen((Arg){0});
-    } else if (focused -> isfloating) {
-        XGetWindowAttributes(dpy, focused -> win, &attr);
-        focused -> x = attr.x;
-        focused -> y = attr.y;
-        focused -> width = attr.width;
-        focused -> height = attr.height;
-    } else tile();
-
     XSync(dpy, True);
 }
 
 void destroynotify(XEvent *event) {
-    if (fullscreen_lock) toggle_fullscreen((Arg){0});
-
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     remove_client(ev -> window);
-    focus(focused);
-    tile();
     XSync(dpy, True);
 }
 
@@ -415,35 +402,6 @@ void clientmessage(XEvent *event) {
                 (unsigned int long)client_msg_event -> data.l[2] == net_atoms[NetWMStateFullscreen])
             toggle_fullscreen((Arg){0});
     }
-}
-
-void add_client(Window win) {
-    Client *new_client;
-    if (!(new_client = (Client *)malloc(sizeof(Client))))
-        die("memory allocation failed");
-
-    new_client -> win = win;
-
-    /* insert new_client in circular doubly linked list */
-    if (head == NULL) {
-        head = new_client;
-        head -> next = head -> prev = NULL;
-    } else if (head -> next == NULL) {
-        head -> next = head -> prev = new_client;
-        new_client -> next = new_client -> prev = head;
-    } else {
-        head -> prev -> next = new_client;
-        new_client -> prev = head -> prev;
-        new_client -> next = head;
-        head -> prev = new_client;
-    }
-
-    total_clients ++;
-    focused = new_client;
-    apply_window_state(focused);
-    apply_rules(focused);
-    if (focused -> isfloating) floating_clients ++;
-    focused -> ws = current_ws;
 }
 
 void tile() {
@@ -501,8 +459,8 @@ void focus(Client *client) {
 
     XSetInputFocus(dpy, focused -> win, RevertToParent, CurrentTime);
     if (focused -> isfloating) XRaiseWindow(dpy, focused -> win);
-    CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&focused -> win, 1)
-	sendevent(focused -> win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
+    CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&focused -> win, 1);
+    sendevent(focused -> win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
 }
 
 void focus_adjacent(Arg arg) {
@@ -510,21 +468,20 @@ void focus_adjacent(Arg arg) {
     focus(arg.i == 1 ? focused -> next : focused -> prev);
 }
 
-void remove_client(Window win) {
-    Client *client;
-    if (!(client = win_to_client(win))) return;
-
-    save_ws(current_ws);
-
-    unsigned int temp_ws = client -> ws;
-    load_ws(temp_ws);
-    if (fullscreen_lock) toggle_fullscreen((Arg){0});
-
-    detach(client);
-    hide_clients();
-    save_ws(temp_ws);
-    load_ws(current_ws);
-    show_clients();
+void attach(Client *client) {
+    /* insert new_client in circular doubly linked list */
+    if (head == NULL) {
+        head = client;
+        head -> next = head -> prev = NULL;
+    } else if (head -> next == NULL) {
+        head -> next = head -> prev = client;
+        client -> next = client -> prev = head;
+    } else {
+        head -> prev -> next = client;
+        client -> prev = head -> prev;
+        client -> next = head;
+        head -> prev = client;
+    }
 }
 
 void detach(Client *client) {
@@ -539,14 +496,78 @@ void detach(Client *client) {
             client -> prev -> next = client -> next;
         }
     }
+}
+
+void manage(Client *client, int ws, bool apply, bool change_focus) {
+    total_clients ++;
+
+    if (apply) {
+        apply_window_state(client);
+        apply_rules(client);
+    }
+
+    if (client -> isfullscreen) {
+        client -> isfullscreen = 0;
+        toggle_fullscreen((Arg){0});
+    } else if (client -> isfloating) {
+        floating_clients ++;
+        XGetWindowAttributes(dpy, client -> win, &attr);
+        client -> x = attr.x;
+        client -> y = attr.y;
+        client -> width = attr.width;
+        client -> height = attr.height;
+    } else tile();
+
+    client -> ws = ws;
+
+    focused = client;
+    if (change_focus) focus(client);
+}
+
+void unmanage(Client *client, bool free_client, bool change_focus) {
+    if (fullscreen_lock) toggle_fullscreen((Arg){0});
 
     total_clients --;
 
     if (client -> isfloating) floating_clients --;
     else tile();
 
-    if (focused -> win == client -> win) focused = client -> prev;
-    free(client);
+    if (focused -> win == client -> win) {
+        focused = client -> prev;
+        if (change_focus) focus(focused);
+    }
+
+    if (free_client) free(client);
+}
+
+void add_client(Window win) {
+    Client *new_client;
+    if (!(new_client = (Client *)malloc(sizeof(Client))))
+        die("memory allocation failed");
+
+    new_client -> win = win;
+
+    attach(new_client);
+    manage(new_client, current_ws, 1, 1);
+}
+
+void remove_client(Window win) {
+    Client *client;
+    if (!(client = win_to_client(win))) return;
+
+    unsigned int client_ws = client -> ws;
+
+    save_ws(current_ws);
+    load_ws(client_ws);
+
+    detach(client);
+    unmanage(client, 1, 1);
+    hide_clients();
+
+    save_ws(client_ws);
+    load_ws(current_ws);
+
+    show_clients();
 }
 
 void swap(Client *focused_client, Client *target_client) {
@@ -765,25 +786,21 @@ void apply_rules(Client *client) {
 void send_to_ws(Arg arg) {
     if ((unsigned int)arg.i == current_ws || focused == NULL) return;
 
-    Client *temp = focused;
+    Client *client = focused;
+
+    detach(client);
+    unmanage(client, 0, 1);
+
     save_ws(current_ws);
     load_ws(arg.i);
-    add_client(temp -> win);
-    focused -> ws = arg.i;
-    if (focused -> isfloating) {
-        focused -> x = temp -> x;
-        focused -> y = temp -> y;
-        focused -> width = temp -> width;
-        focused -> height = temp -> height;
-    } else tile();
 
+    attach(client);
+    manage(client, arg.i, 0, 0);
     hide_clients();
 
     save_ws(arg.i);
     load_ws(current_ws);
 
-    detach(temp);
-    focus(focused);
     XSync(dpy, True);
 }
 
