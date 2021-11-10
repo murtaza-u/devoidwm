@@ -200,7 +200,7 @@ void start() {
     cursors[CurMove] = XCreateFontCursor(dpy, XC_fleur);
 
     /* define the cursor */
-	XDefineCursor(dpy, root.win, cursors[CurNormal]);
+    XDefineCursor(dpy, root.win, cursors[CurNormal]);
 
     /* initialise workspaces */
     for (unsigned int i = 0; i < MAX_WORKSPACES; i ++) {
@@ -406,13 +406,13 @@ void enternotify(XEvent *event) {
 }
 
 void clientmessage(XEvent *event) {
-	XClientMessageEvent *client_msg_event = &event -> xclient;
-	Client *client = win_to_client(client_msg_event -> window);
+    XClientMessageEvent *client_msg_event = &event -> xclient;
+    Client *client = win_to_client(client_msg_event -> window);
 
-	if (!client) return;
+    if (!client) return;
     if (client_msg_event -> message_type == net_atoms[NetWMState]) {
         if ((unsigned int long)client_msg_event -> data.l[1] == net_atoms[NetWMStateFullscreen] ||
-            (unsigned int long)client_msg_event -> data.l[2] == net_atoms[NetWMStateFullscreen])
+                (unsigned int long)client_msg_event -> data.l[2] == net_atoms[NetWMStateFullscreen])
             toggle_fullscreen((Arg){0});
     }
 }
@@ -524,6 +524,7 @@ void remove_client(Window win) {
     hide_clients();
     save_ws(temp_ws);
     load_ws(current_ws);
+    show_clients();
 }
 
 void detach(Client *client) {
