@@ -92,7 +92,6 @@ static void buttonrelease(XEvent *event);
 static void motionnotify(XEvent *event);
 static void maprequest(XEvent *event);
 static void destroynotify(XEvent *event);
-static void configurerequest(XEvent *event);
 static void enternotify(XEvent *event);
 static void clientmessage(XEvent *event);
 
@@ -151,7 +150,6 @@ static void (*handle_events[LASTEvent])(XEvent *event) = {
     [ButtonRelease] = buttonrelease,
     [MotionNotify] = motionnotify,
     [MapRequest] = maprequest,
-    [ConfigureRequest] = configurerequest,
     [DestroyNotify] = destroynotify,
     [EnterNotify] = enternotify,
     [ClientMessage] = clientmessage,
@@ -597,27 +595,6 @@ void move_client(Arg arg) {
     swap(focused, arg.i == 1 ? focused -> next : focused -> prev);
     focus(arg.i == 1 ? focused -> next : focused -> prev);
     XSync(dpy, True);
-}
-
-void configurerequest(XEvent *event) {
-    XConfigureRequestEvent *ev = &event -> xconfigurerequest;
-    XWindowChanges wc;
-    wc.x = ev -> x;
-    wc.y = ev -> y;
-    wc.width = ev -> width;
-    wc.height = ev -> height;
-    wc.border_width = ev -> border_width;
-    wc.sibling = ev -> above;
-    wc.stack_mode = ev -> detail;
-    XConfigureWindow(dpy, ev -> window, ev -> value_mask, &wc);
-
-    Client *client;
-    if ((client = win_to_client(ev -> window))) {
-        client -> x = ev -> x;
-        client -> y = ev -> y;
-        client -> width = ev -> width;
-        client -> height = ev -> height;
-    }
 }
 
 void kill_client(Arg arg) {
