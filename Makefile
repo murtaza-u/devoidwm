@@ -3,11 +3,12 @@ CFLAGS += -std=c99 -Wall -Wextra -pedantic -Os
 PREFIX ?= /usr
 BINDIR ?= $(PREFIX)/bin
 CC ?= gcc
+VPATH=src
 
 all: devoid
 
-devoid: devoid.o
-	$(CC) -o $@ $^ $(LIBS) $(LDFLAGS)
+devoid:
+	$(CC) $(VPATH)/*.c -o devoid $(LIBS) $(LDFLAGS)
 
 install: all
 	install -d $(DESTDIR)$(BINDIR)
