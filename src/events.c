@@ -1,24 +1,28 @@
 #include <X11/Xlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
+#include "client.h"
 #include "devoid.h"
+#include "dwindle.h"
 #include "key.h"
 #include "ewmh.h"
+#include "mouse.h"
 
 void keypress(XEvent *event) {
     handle_keypress(event);
 }
 
 void buttonpress(XEvent *event) {
-
+    handle_buttonpress(event);
 }
 
-void buttonrelease(XEvent *event) {
-
+void buttonrelease() {
+    XUngrabPointer(dpy, CurrentTime);
 }
 
 void motionnotify(XEvent *event) {
-
+    handle_motionnotify(event);
 }
 
 void maprequest(XEvent *event) {
@@ -31,37 +35,43 @@ void maprequest(XEvent *event) {
     XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask|PropertyChangeMask);
 
     /* for pinentry-gtk (and maybe some other programs) */
-    Client *c = root.head;
-    do {
-        if (c == NULL) break;
-        if(ev -> window == c -> win) {
-            XMapWindow(dpy, ev -> window);
-            focus(c);
-            return;
-        }
-        c = c -> next;
-    } while (c != NULL && c -> next != root.head);
+    Client *c;
+    if ((c = wintoclient(ev -> window))) {
+        XMapWindow(dpy, ev -> window);
+        focus(c);
+        return;
+    }
+
+    c = newclient(ev -> window);
+
+    apply_window_state(c);
+    attach(c);
+    tile();
 
     XMapWindow(dpy, ev -> window);
-    XMoveResizeWindow(dpy, ev -> window, root.x, root.y, root.width, root.height);
+    focus(c);
+
     XSync(dpy, True);
 }
 
 void destroynotify(XEvent *event) {
-
+    XDestroyWindowEvent *ev = &event -> xdestroywindow;
+    Client *c;
+    if (!(c = wintoclient(ev -> window))) return;
+    detach(c);
+    if (ISVISIBLE(c)) {
+        tile();
+        focus(prevtiled(c));
+    }
+    free(c);
+    XSync(dpy, True);
 }
 
 void enternotify(XEvent *event) {
-    if (root.focused == NULL) return;
+    if (sel == NULL) return;
     XCrossingEvent *ev = &event -> xcrossing;
-    Client *client = root.head;
-    do {
-        if (client -> win == ev -> window) {
-            focus(client);
-            break;
-        }
-        client = client -> next;
-    } while (client != NULL && client != root.head);
+    Client *c;
+    if ((c = wintoclient(ev -> window))) focus(c);
 }
 
 void clientmessage(XEvent *event) {
@@ -72,8 +82,7 @@ void clientmessage(XEvent *event) {
     if (client_msg_event -> message_type == net_atoms[NetWMState]) {
         if ((unsigned int long)client_msg_event -> data.l[1] == net_atoms[NetWMStateFullscreen] ||
                 (unsigned int long)client_msg_event -> data.l[2] == net_atoms[NetWMStateFullscreen])
-            return;
-            // toggle_fullscreen((Arg){0});
+            togglefullscreen((Arg){0});
     }
 }
 
@@ -88,7 +97,7 @@ void handle_event(XEvent *event) {
             break;
 
         case ButtonRelease:
-            buttonrelease(event);
+            buttonrelease();
             break;
 
         case MotionNotify:

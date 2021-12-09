@@ -18,6 +18,6 @@ uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/devoid
 
 clean:
-	rm -f devoid *.o
+	rm -f devoid
 
 .PHONY: all install uninstall clean

@@ -10,7 +10,7 @@ void handle_keypress(XEvent *event) {
     for (size_t i = 0; i < sizeof(keys) / sizeof(Key); i ++) {
         KeySym keysym = XkbKeycodeToKeysym(dpy, event -> xkey.keycode, 0, 0);
         if (keysym == keys[i].keysym &&
-            MODCLEAN(keys[i].modifier) == MODCLEAN(event -> xkey.state))
+            CLEANMASK(keys[i].modifier) == CLEANMASK(event -> xkey.state))
             keys[i].execute(keys[i].arg);
     }
 }

@@ -6,13 +6,18 @@
 
 #include "devoid.h"
 #include "events.h"
+#include "ewmh.h"
 #include "key.h"
+#include "mouse.h"
 #include "../config.h"
 
 bool isrunning;
 Display *dpy;
 XWindowAttributes attr;
 int screen;
+Client *head, *sel;
+bool fullscreenlock;
+unsigned int seltags;
 struct Root root;
 
 int main() {
@@ -42,13 +47,20 @@ void start() {
     root.y = 0;
     root.width = XDisplayWidth(dpy, screen);
     root.height = XDisplayHeight(dpy, screen);
-    root.head = root.focused = NULL;
+
+    head = sel = NULL;
+
+    seltags = 1 << 0;
 
     /* for quiting wm */
     isrunning = 1;
 
     /* get MapRequest events */
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
+
+    setup_ewmh_atoms();
+
+    setup_cursor();
 }
 
 void grab() {
@@ -79,7 +91,7 @@ void stop() {
     XUngrabKey(dpy, AnyKey, AnyModifier, root.win);
     XSync(dpy, False);
     XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
-    // XDeleteProperty(dpy, root.win, net_atoms[NetActiveWindow]);
+    XDeleteProperty(dpy, root.win, net_atoms[NetActiveWindow]);
     XCloseDisplay(dpy);
 }
 

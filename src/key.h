@@ -4,11 +4,12 @@
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
 
-#define MODCLEAN(mask) (mask & \
-    (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
+#define CLEANMASK(mask) (mask & \
+                         (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
 
 typedef union {
-    const int i;
+    int i;
+    unsigned int ui;
 } Arg;
 
 typedef struct {

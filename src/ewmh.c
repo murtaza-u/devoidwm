@@ -38,8 +38,8 @@ void setup_ewmh_atoms() {
 }
 
 void apply_window_state(Client *c) {
-    c -> isfloating = false;
-    c -> isfullscreen = false;
+    c -> isfloating = 0;
+    c -> isfullscreen = 0;
 
     Atom prop = get_atom_prop(c -> win, net_atoms[NetWMWindowType]);
     if (prop == net_atoms[NetWMWindowTypeDialog] ||
