@@ -6,6 +6,7 @@
 #include "dwindle.h"
 #include "events.h"
 #include "ewmh.h"
+#include "../config.h"
 
 void attach(Client *c) {
     if (!head) {
@@ -44,12 +45,8 @@ void togglefullscreen(Arg arg) {
         sel -> y = 0;
         sel -> width = XDisplayWidth(dpy, screen);
         sel -> height = XDisplayHeight(dpy, screen);
-
-        XMoveResizeWindow(dpy, sel -> win, sel -> x, sel -> y,
-                          sel -> width, sel -> height);
-
+        XMoveResizeWindow(dpy, sel -> win, sel -> x, sel -> y, sel -> width, sel -> height);
         XRaiseWindow(dpy, sel -> win);
-
         CHANGEATOMPROP(net_atoms[NetWMState], XA_ATOM,
                        (unsigned char*)&net_atoms[NetWMStateFullscreen], 1);
     } else {
@@ -176,11 +173,8 @@ void swap(Client *focused_client, Client *target_client) {
     focused_client -> win = target_client -> win;
     target_client -> win = temp;
 
-    XMoveResizeWindow(dpy, focused_client -> win, focused_client -> x,
-                      focused_client -> y, focused_client -> width, focused_client -> height);
-
-    XMoveResizeWindow(dpy, target_client -> win, target_client -> x,
-                      target_client -> y, target_client -> width, target_client -> height);
+    resize(focused_client);
+    resize(target_client);
 }
 
 void zoom(Arg arg) {
@@ -192,4 +186,12 @@ void zoom(Arg arg) {
     swap(sel, visible_head);
     focus(visible_head);
     XSync(dpy, True);
+}
+
+void resize(Client *c) {
+    c -> x += gap;
+    c -> y += gap;
+    c -> width -= gap * 2;
+    c -> height -= gap * 2;
+    XMoveResizeWindow(dpy, c -> win, c -> x, c -> y, c -> width, c -> height);
 }

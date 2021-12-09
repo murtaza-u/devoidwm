@@ -46,12 +46,8 @@ void tile() {
             c -> height = root.height;
         } else shrink(prev, &c -> x, &c -> y, &c -> width, &c -> height);
 
-        if (prev) XMoveResizeWindow(dpy, prev -> win, prev -> x, prev -> y,
-                                    prev -> width, prev -> height);
-
-        if (i == n - 1) XMoveResizeWindow(dpy, c -> win, c -> x, c -> y,
-                                          c -> width, c -> height);
-
+        if (prev) resize(prev);
+        if (i == n - 1) resize(c);
         prev = c;
     }
 }

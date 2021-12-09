@@ -1,5 +1,6 @@
 #include <X11/Xlib.h>
 
+#include "client.h"
 #include "devoid.h"
 #include "mouse.h"
 
@@ -44,5 +45,5 @@ void handle_motionnotify(XEvent *event) {
     sel -> width = MAX(1, attr.width + (isLeftClick ? 0 : dx));
     sel -> height = MAX(1, attr.height + (isLeftClick ? 0 : dy));
 
-    XMoveResizeWindow(dpy, sel -> win, sel -> x, sel -> y, sel -> width, sel -> height);
+    resize(sel);
 }

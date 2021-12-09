@@ -34,5 +34,6 @@ void showhide(Client *c);
 void killclient(Arg arg);
 void swap(Client *focused_client, Client *target_client);
 void zoom(Arg arg);
+void resize(Client *client);
 
 #endif
