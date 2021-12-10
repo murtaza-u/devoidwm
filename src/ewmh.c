@@ -26,7 +26,7 @@ void setup_ewmh_atoms() {
     net_atoms[NetNumberOfDesktops] = GETATOMIDENTIFIER("_NET_NUMBER_OF_DESKTOPS");
     net_atoms[NetCurrentDesktop] = GETATOMIDENTIFIER("_NET_CURRENT_DESKTOP");
     net_atoms[NetWMState] = GETATOMIDENTIFIER("_NET_WM_STATE");
-    net_atoms[NetWMStateFullscreen] = GETATOMIDENTIFIER("_NET_WM_STATE_FULLSCREEN");
+    net_atoms[NetWMStatefullscr] = GETATOMIDENTIFIER("_NET_WM_STATE_fullscr");
     net_atoms[NetWMStateAbove] = GETATOMIDENTIFIER("_NET_WM_STATE_ABOVE");
     net_atoms[NetWMWindowType] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE");
     net_atoms[NetWMWindowTypeDialog] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_DIALOG");
@@ -39,7 +39,7 @@ void setup_ewmh_atoms() {
 
 void apply_window_state(Client *c) {
     c -> isfloating = 0;
-    c -> isfullscreen = 0;
+    c -> isfullscr = 0;
 
     Atom prop = get_atom_prop(c -> win, net_atoms[NetWMWindowType]);
     if (prop == net_atoms[NetWMWindowTypeDialog] ||
@@ -53,5 +53,5 @@ void apply_window_state(Client *c) {
 
     prop = get_atom_prop(c -> win, net_atoms[NetWMState]);
     if (prop == net_atoms[NetWMStateAbove]) c -> isfloating = 1;
-    else if (prop == net_atoms[NetWMStateFullscreen]) c -> isfullscreen = 1;
+    else if (prop == net_atoms[NetWMStatefullscr]) c -> isfullscr = 1;
 }

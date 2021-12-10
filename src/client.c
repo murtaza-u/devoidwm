@@ -7,6 +7,7 @@
 #include "events.h"
 #include "ewmh.h"
 #include "../config.h"
+#include "tags.h"
 
 void attach(Client *c) {
     if (!head) {
@@ -36,25 +37,12 @@ Client* wintoclient(Window win) {
     return NULL;
 }
 
-void togglefullscreen(Arg arg) {
+void togglefullscr(Arg arg) {
     (void)arg;
-    if (sel == NULL || sel -> isfullscreen != fullscreenlock) return;
+    if (sel == NULL) return;
 
-    if (!sel -> isfullscreen) {
-        sel -> x = 0;
-        sel -> y = 0;
-        sel -> width = XDisplayWidth(dpy, screen);
-        sel -> height = XDisplayHeight(dpy, screen);
-        XMoveResizeWindow(dpy, sel -> win, sel -> x, sel -> y, sel -> width, sel -> height);
-        XRaiseWindow(dpy, sel -> win);
-        CHANGEATOMPROP(net_atoms[NetWMState], XA_ATOM,
-                       (unsigned char*)&net_atoms[NetWMStateFullscreen], 1);
-    } else {
-        tile();
-    }
-
-    fullscreenlock = !fullscreenlock;
-    sel -> isfullscreen = fullscreenlock;
+    if (sel -> isfullscr) unlock_fullscr(sel);
+    else lock_fullscr(sel);
 }
 
 Client* nexttiled(Client *next, unsigned int tags) {
@@ -188,11 +176,11 @@ void zoom(Arg arg) {
 }
 
 void resize(Client *c) {
-    c -> x += gap;
-    c -> y += gap;
-    c -> width -= gap * 2;
-    c -> height -= gap * 2;
-    XMoveResizeWindow(dpy, c -> win, c -> x, c -> y, c -> width, c -> height);
+    if (c -> isfloating)
+        XMoveResizeWindow(dpy, c -> win, c -> x, c -> y, c -> width, c -> height);
+    else
+        XMoveResizeWindow(dpy, c -> win, c -> x + gap, c -> y + gap,
+                          c -> width - gap * 2, c -> height - gap * 2);
 }
 
 void incmaster(Arg arg) {
@@ -213,4 +201,16 @@ void setmratio(Arg arg) {
     if (new_mratio == mratio) return;
     mratio = new_mratio;
     tile();
+}
+
+void lock_fullscr(Client *c) {
+    XMoveResizeWindow(dpy, c -> win, 0, 0, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
+    c -> isfullscr = 1;
+    save_fullscrlock(c);
+}
+
+void unlock_fullscr(Client *c) {
+    tile();
+    c -> isfullscr = 0;
+    save_fullscrlock(c);
 }

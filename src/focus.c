@@ -42,8 +42,12 @@ void focus_adjacent(Arg arg) {
 }
 
 void save_focus(Client *c) {
-    for (unsigned int i = 0; i < 9; i ++)
-        if ((1 << i) & c -> tags) tags[i].focused = c;
+    for (unsigned int i = 0; i < 9; i ++) {
+        if ((1 << i) & c -> tags) {
+            tags[i].focused = c;
+            tags[i].fullscrlock = c -> isfullscr;
+        }
+    }
 }
 
 Client* get_focus() {

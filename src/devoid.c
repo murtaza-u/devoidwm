@@ -15,7 +15,6 @@ Display *dpy;
 XWindowAttributes attr;
 int screen;
 Client *head, *sel;
-bool fullscreenlock;
 unsigned int seltags, nmaster;
 float mratio;
 struct Root root;

@@ -71,7 +71,7 @@ static const Key keys[] = {
     {MODKEY, XK_x, killclient, {0}},
 
     /* toggle fullscreen */
-    {MODKEY|ShiftMask, XK_f, togglefullscreen, {0}},
+    {MODKEY|ShiftMask, XK_f, togglefullscr, {0}},
 
     /* change the size of the master window */
     {MODKEY, XK_h, setmratio, {.f = -0.05}},

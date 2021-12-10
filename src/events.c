@@ -9,6 +9,7 @@
 #include "key.h"
 #include "ewmh.h"
 #include "mouse.h"
+#include "tags.h"
 
 void keypress(XEvent *event) {
     handle_keypress(event);
@@ -27,6 +28,8 @@ void motionnotify(XEvent *event) {
 }
 
 void maprequest(XEvent *event) {
+    if (get_fullscrlock(seltags)) unlock_fullscr(sel);
+
     XMapRequestEvent *ev = &event -> xmaprequest;
 
     XGetWindowAttributes(dpy, ev -> window, &attr);
@@ -45,9 +48,16 @@ void maprequest(XEvent *event) {
 
     c = newclient(ev -> window);
 
-    apply_window_state(c);
     attach(c);
-    tile();
+    apply_window_state(c);
+    if (c -> isfloating) {
+        XGetWindowAttributes(dpy, c -> win, &attr);
+        c -> x = attr.x;
+        c -> y = attr.y;
+        c -> width = attr.width;
+        c -> height = attr.height;
+        resize(c);
+    } else tile();
     XMapWindow(dpy, ev -> window);
     focus(c);
 }
@@ -56,6 +66,7 @@ void destroynotify(XEvent *event) {
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     Client *c;
     if (!(c = wintoclient(ev -> window))) return;
+    if (get_fullscrlock(c -> tags)) unlock_fullscr(c);
     unfocus(c);
     detach(c);
     if (isvisible(c, 0)) {
@@ -79,9 +90,9 @@ void clientmessage(XEvent *event) {
 
     if (!c) return;
     if (client_msg_event -> message_type == net_atoms[NetWMState]) {
-        if ((unsigned int long)client_msg_event -> data.l[1] == net_atoms[NetWMStateFullscreen] ||
-                (unsigned int long)client_msg_event -> data.l[2] == net_atoms[NetWMStateFullscreen])
-            togglefullscreen((Arg){0});
+        if ((unsigned int long)client_msg_event -> data.l[1] == net_atoms[NetWMStatefullscr] ||
+                (unsigned int long)client_msg_event -> data.l[2] == net_atoms[NetWMStatefullscr])
+            togglefullscr((Arg){0});
     }
 }
 

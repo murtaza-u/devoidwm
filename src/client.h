@@ -12,7 +12,7 @@ struct Client {
     int x, y;
     unsigned int width, height;
     Client *next;
-    bool isfloating, isfullscreen;
+    bool isfloating, isfullscr;
     unsigned int tags;
 };
 
@@ -29,7 +29,7 @@ Client* newclient(Window win);
 Client* get_visible_head();
 Client* get_visible_tail();
 void focus(Client *c);
-void togglefullscreen(Arg arg);
+void togglefullscr(Arg arg);
 void showhide(Client *c);
 void killclient(Arg arg);
 void swap(Client *focused_client, Client *target_client);
@@ -38,5 +38,7 @@ void resize(Client *client);
 void incmaster(Arg arg);
 void setmratio(Arg arg);
 bool isvisible(Client *c, unsigned int tags);
+void lock_fullscr(Client *c);
+void unlock_fullscr(Client *c);
 
 #endif

@@ -22,7 +22,6 @@ extern Display *dpy;
 extern int screen;
 extern XWindowAttributes attr;
 extern Client *head, *sel;
-extern bool fullscreenlock;
 extern unsigned int seltags;
 extern unsigned int nmaster;
 extern float mratio;
