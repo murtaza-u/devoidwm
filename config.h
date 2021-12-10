@@ -28,9 +28,9 @@
 static unsigned int gap = 5;
 
 /* Border around windows */
-// static char focused_border_color[] = "#ffffff";
-// static char normal_border_color[] = "#10151a";
-// static unsigned int border_width = 1;
+static char focused_border_color[] = "#ffffff";
+static char normal_border_color[] = "#10151a";
+static unsigned int border_width = 1;
 
 // static const Rule rules[] = {
 //     /* xprop:
@@ -82,6 +82,7 @@ static const Key keys[] = {
     {MODKEY, XK_d, incmaster, {.i = -1}},
 
     /* switch workspaces */
+    {MODKEY, XK_0, view, {.ui = (1 << 9) - 1}},
     {MODKEY, XK_1, view, {.ui = 1 << 0}},
     {MODKEY, XK_2, view, {.ui = 1 << 1}},
     {MODKEY, XK_3, view, {.ui = 1 << 2}},
@@ -92,6 +93,7 @@ static const Key keys[] = {
     {MODKEY, XK_8, view, {.ui = 1 << 7}},
     {MODKEY, XK_9, view, {.ui = 1 << 8}},
 
+    {MODKEY|ControlMask, XK_0, toggletag, {.ui = (1 << 9) - 1}},
     {MODKEY|ControlMask, XK_1, toggletag, {.ui = 1 << 0}},
     {MODKEY|ControlMask, XK_2, toggletag, {.ui = 1 << 1}},
     {MODKEY|ControlMask, XK_3, toggletag, {.ui = 1 << 2}},
@@ -102,16 +104,16 @@ static const Key keys[] = {
     {MODKEY|ControlMask, XK_8, toggletag, {.ui = 1 << 7}},
     {MODKEY|ControlMask, XK_9, toggletag, {.ui = 1 << 8}},
 
-    /* send focused client to a different workspace */
-    // {MODKEY|ShiftMask, XK_1, send_to_ws, {.i = 0}},
-    // {MODKEY|ShiftMask, XK_2, send_to_ws, {.i = 1}},
-    // {MODKEY|ShiftMask, XK_3, send_to_ws, {.i = 2}},
-    // {MODKEY|ShiftMask, XK_4, send_to_ws, {.i = 3}},
-    // {MODKEY|ShiftMask, XK_5, send_to_ws, {.i = 4}},
-    // {MODKEY|ShiftMask, XK_6, send_to_ws, {.i = 5}},
-    // {MODKEY|ShiftMask, XK_7, send_to_ws, {.i = 6}},
-    // {MODKEY|ShiftMask, XK_8, send_to_ws, {.i = 7}},
-    // {MODKEY|ShiftMask, XK_9, send_to_ws, {.i = 8}},
+    {MODKEY|ShiftMask, XK_0, tag, {.ui = (1 << 9) - 1}},
+    {MODKEY|ShiftMask, XK_1, tag, {.ui = 1 << 0}},
+    {MODKEY|ShiftMask, XK_2, tag, {.ui = 1 << 1}},
+    {MODKEY|ShiftMask, XK_3, tag, {.ui = 1 << 2}},
+    {MODKEY|ShiftMask, XK_4, tag, {.ui = 1 << 3}},
+    {MODKEY|ShiftMask, XK_5, tag, {.ui = 1 << 4}},
+    {MODKEY|ShiftMask, XK_6, tag, {.ui = 1 << 5}},
+    {MODKEY|ShiftMask, XK_7, tag, {.ui = 1 << 6}},
+    {MODKEY|ShiftMask, XK_8, tag, {.ui = 1 << 7}},
+    {MODKEY|ShiftMask, XK_9, tag, {.ui = 1 << 8}},
 };
 
 #endif

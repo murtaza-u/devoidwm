@@ -16,7 +16,7 @@ Display *dpy;
 XWindowAttributes attr;
 int screen;
 Client *head, *sel;
-unsigned int seltags, nmaster;
+unsigned int seltags, nmaster, selbpx, normbpx;
 float mratio;
 struct Root root;
 
@@ -62,6 +62,10 @@ void start() {
 
     /* get MapRequest events */
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
+
+    /* initialising colors */
+    selbpx = getcolor(focused_border_color);
+    normbpx = getcolor(normal_border_color);
 
     setup_ewmh_atoms();
     setup_tags();

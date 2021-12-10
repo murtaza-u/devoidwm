@@ -28,7 +28,6 @@ Client* prevvisible(Client *c, unsigned int tags);
 Client* newclient(Window win);
 Client* get_visible_head();
 Client* get_visible_tail();
-void focus(Client *c);
 void togglefullscr(Arg arg);
 void showhide(Client *c);
 void killclient(Arg arg);
@@ -40,5 +39,6 @@ void setmratio(Arg arg);
 unsigned int isvisible(Client *c, unsigned int tags);
 void lock_fullscr(Client *c);
 void unlock_fullscr(Client *c);
+unsigned int getcolor(const char *color);
 
 #endif

@@ -22,8 +22,7 @@ extern Display *dpy;
 extern int screen;
 extern XWindowAttributes attr;
 extern Client *head, *sel;
-extern unsigned int seltags;
-extern unsigned int nmaster;
+extern unsigned int seltags, nmaster, selbpx, normbpx;
 extern float mratio;
 
 struct Root {

@@ -5,6 +5,7 @@
 #include "dwindle.h"
 #include "devoid.h"
 #include "tags.h"
+#include "focus.h"
 
 struct Tag tags[9];
 
@@ -18,16 +19,16 @@ void setup_tags() {
 void view(Arg arg) {
     if (arg.ui == seltags) return;
     seltags = arg.ui;
-    tile();
     showhide(head);
+    tile();
     focus(NULL);
     if (get_fullscrlock(seltags)) lock_fullscr(sel);
 }
 
 void toggletag(Arg arg) {
     seltags ^= arg.ui;
-    tile();
     showhide(head);
+    tile();
 }
 
 void save_fullscrlock(Client *c) {
@@ -39,4 +40,14 @@ bool get_fullscrlock(unsigned int t) {
     for (unsigned int i = 0; i < 9; i ++)
         if ((1 << i) & t) return tags[i].fullscrlock;
     return 0;
+}
+
+void tag(Arg arg) {
+    if (arg.ui == sel -> tags) return;
+    Client *c = sel;
+    focus(unfocus(sel));
+    c -> tags = arg.ui;
+    save_focus(c);
+    XMoveWindow(dpy, c -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
+    if (!c -> isfloating) tile();
 }

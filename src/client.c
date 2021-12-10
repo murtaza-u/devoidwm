@@ -124,10 +124,10 @@ Client *newclient(Window win) {
 void showhide(Client *c) {
     if (!c) return;
 
-    if (isvisible(c, 0) && c -> isfloating) {
+    if (isvisible(c, 0)) {
         XMoveWindow(dpy, c -> win, c -> x, c -> y);
         showhide(c -> next);
-    } else if (!isvisible(c, 0)) {
+    } else {
         showhide(c -> next);
         XGetWindowAttributes(dpy, c -> win, &attr);
         if (attr.x == XDisplayWidth(dpy, screen)) return;
@@ -136,7 +136,7 @@ void showhide(Client *c) {
         c -> width = attr.width;
         c -> height = attr.height;
         XMoveWindow(dpy, c -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
-    } else showhide(c -> next);
+    }
 }
 
 void killclient(Arg arg) {
@@ -206,10 +206,21 @@ void lock_fullscr(Client *c) {
     XMoveResizeWindow(dpy, c -> win, 0, 0, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
     c -> isfullscr = 1;
     save_fullscrlock(c);
+    XSetWindowBorderWidth(dpy, c -> win, 0);
 }
 
 void unlock_fullscr(Client *c) {
     if (isvisible(c, 0)) tile();
     c -> isfullscr = 0;
     save_fullscrlock(c);
+    XSetWindowBorderWidth(dpy, c -> win, border_width);
+}
+
+unsigned int getcolor(const char *color) {
+    XColor c;
+    Colormap colormap = DefaultColormap(dpy, screen);
+    if (!XAllocNamedColor(dpy, colormap, color, &c, &c))
+        die("invalid color");
+
+    return c.pixel;
 }

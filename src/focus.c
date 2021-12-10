@@ -4,15 +4,19 @@
 #include "events.h"
 #include "focus.h"
 #include "tags.h"
+#include "../config.h"
 
 void focus(Client *c) {
     if (!c) {
         c = get_focus();
         if (!c) {
-            XSetInputFocus(dpy, root.win, RevertToPointerRoot, CurrentTime);
-            XDeleteProperty(dpy, root.win, net_atoms[NetActiveWindow]);
-            sel = NULL;
-            return;
+            c = get_visible_head();
+            if (!c ) {
+                XSetInputFocus(dpy, root.win, RevertToPointerRoot, CurrentTime);
+                XDeleteProperty(dpy, root.win, net_atoms[NetActiveWindow]);
+                sel = NULL;
+                return;
+            }
         }
     }
 
@@ -21,6 +25,12 @@ void focus(Client *c) {
 
     CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&c -> win, 1);
     sendevent(c -> win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
+
+    for (Client *i = nexttiled(head, 0); i; i = nexttiled(i -> next, 0)) {
+        XSetWindowBorderWidth(dpy, i -> win, border_width);
+        if (i == c) XSetWindowBorder(dpy, i -> win, selbpx);
+        else XSetWindowBorder(dpy, i -> win, normbpx);
+    }
 
     save_focus(c);
     sel = c;
@@ -57,10 +67,10 @@ Client* get_focus() {
 }
 
 Client* unfocus(Client *c) {
-    Client *prev = NULL;
+    Client *tofocus = NULL;
     for (unsigned int i = 0; i < 9; i ++) {
         if (((1 << i) & c -> tags) && tags[i].focused == c)
-            tags[i].focused = prev = prevvisible(c, 0);
+            tags[i].focused = tofocus = prevvisible(c, c -> tags);
     }
-    return prev;
+    return tofocus;
 }
