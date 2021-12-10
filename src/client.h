@@ -1,8 +1,6 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#define ISVISIBLE(c) (c -> tags & seltags)
-
 #include <X11/Xlib.h>
 #include <stdbool.h>
 
@@ -21,10 +19,12 @@ struct Client {
 void attach(Client *client);
 void detach(Client *client);
 Client* wintoclient(Window win);
-Client* nexttiled(Client *c);
-Client* prevtiled(Client *c);
-Client* nextvisible(Client *c);
-Client* prevvisible(Client *c);
+
+Client* nexttiled(Client *c, unsigned int tags);
+Client* prevtiled(Client *c, unsigned int tags);
+Client* nextvisible(Client *c, unsigned int tags);
+Client* prevvisible(Client *c, unsigned int tags);
+
 Client* newclient(Window win);
 Client* get_visible_head();
 Client* get_visible_tail();
@@ -35,5 +35,8 @@ void killclient(Arg arg);
 void swap(Client *focused_client, Client *target_client);
 void zoom(Arg arg);
 void resize(Client *client);
+void incmaster(Arg arg);
+void setmratio(Arg arg);
+bool isvisible(Client *c, unsigned int tags);
 
 #endif

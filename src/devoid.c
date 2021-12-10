@@ -9,7 +9,6 @@
 #include "ewmh.h"
 #include "key.h"
 #include "mouse.h"
-#include "../config.h"
 
 bool isrunning;
 Display *dpy;
@@ -17,8 +16,11 @@ XWindowAttributes attr;
 int screen;
 Client *head, *sel;
 bool fullscreenlock;
-unsigned int seltags;
+unsigned int seltags, nmaster;
+float mratio;
 struct Root root;
+
+#include "../config.h"
 
 int main() {
     start();
@@ -51,6 +53,9 @@ void start() {
     head = sel = NULL;
 
     seltags = 1 << 0;
+
+    nmaster = 1;
+    mratio = 0.5;
 
     /* for quiting wm */
     isrunning = 1;

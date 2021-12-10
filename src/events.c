@@ -5,6 +5,7 @@
 #include "client.h"
 #include "devoid.h"
 #include "dwindle.h"
+#include "focus.h"
 #include "key.h"
 #include "ewmh.h"
 #include "mouse.h"
@@ -47,24 +48,22 @@ void maprequest(XEvent *event) {
     apply_window_state(c);
     attach(c);
     tile();
-
     XMapWindow(dpy, ev -> window);
     focus(c);
-
-    XSync(dpy, True);
 }
 
 void destroynotify(XEvent *event) {
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     Client *c;
     if (!(c = wintoclient(ev -> window))) return;
+    unfocus(c);
     detach(c);
-    if (ISVISIBLE(c)) {
+    if (isvisible(c, 0)) {
         tile();
-        focus(prevtiled(c));
+        Arg arg = {.i = -1};
+        focus_adjacent(arg);
     }
     free(c);
-    XSync(dpy, True);
 }
 
 void enternotify(XEvent *event) {

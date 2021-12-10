@@ -13,10 +13,10 @@
 #define MAX_WORKSPACES 9
 
 /* size of the master window range -> (0, 1) */
-static float mratio = 0.5;
+// static float mratio = 0.5;
 
 /* no. of windows in the master area */
-static unsigned int nmaster = 1;
+// static unsigned int nmaster = 1;
 
 /* margin */
 static unsigned int margin_top = 6;
@@ -74,12 +74,12 @@ static const Key keys[] = {
     {MODKEY|ShiftMask, XK_f, togglefullscreen, {0}},
 
     /* change the size of the master window */
-    // {MODKEY, XK_h, change_master_size, {.i = -5}},
-    // {MODKEY, XK_l, change_master_size, {.i = 5}},
+    {MODKEY, XK_h, setmratio, {.f = -0.05}},
+    {MODKEY, XK_l, setmratio, {.f = 0.05}},
 
     /* increment/decrement no. of windows in master area */
-    // {MODKEY, XK_i, incmaster, {.i = 1}},
-    // {MODKEY, XK_d, incmaster, {.i = -1}},
+    {MODKEY, XK_i, incmaster, {.i = 1}},
+    {MODKEY, XK_d, incmaster, {.i = -1}},
 
     /* switch workspaces */
     {MODKEY, XK_1, view, {.ui = 1 << 0}},

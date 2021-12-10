@@ -27,18 +27,25 @@ void tile() {
     if (!head) return;
 
     unsigned int n = 0, i = 0, mwidth;
-    Client *c = nexttiled(head), *prev = NULL;
+    Client *c = nexttiled(head, 0), *prev = NULL;
 
-    for (; c; c = nexttiled(c -> next), n ++);
-    mwidth = n > nmaster ? mratio * root.width : root.width;
+    for (; c; c = nexttiled(c -> next, 0), n ++);
 
-    c = nexttiled(head);
-    for (; c; c = nexttiled(c -> next), i ++) {
+    mwidth = root.width * (n > nmaster ? mratio : 1);
+
+    c = nexttiled(head, 0);
+    for (; c; c = nexttiled(c -> next, 0), i ++) {
         if (i == 0) {
             c -> x = root.x;
             c -> y = root.y;
             c -> width = mwidth;
             c -> height = root.height;
+        } else if (i < nmaster && i == 1) {
+            prev -> height /= 2;
+            c -> y = prev -> y + prev -> height;
+            c -> x = prev -> x;
+            c -> width = prev -> width;
+            c -> height = prev -> height;
         } else if (i == nmaster) {
             c -> x = root.width * mratio;
             c -> y = root.y;

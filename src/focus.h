@@ -5,5 +5,8 @@
 
 void focus(Client *c);
 void focus_adjacent(Arg arg);
+void save_focus(Client *c);
+Client* get_focus();
+void unfocus(Client *c);
 
 #endif

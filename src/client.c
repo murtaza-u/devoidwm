@@ -1,8 +1,8 @@
 #include <X11/Xlib.h>
 #include <stdlib.h>
 
-#include "client.h"
 #include "devoid.h"
+#include "client.h"
 #include "dwindle.h"
 #include "events.h"
 #include "ewmh.h"
@@ -55,48 +55,46 @@ void togglefullscreen(Arg arg) {
 
     fullscreenlock = !fullscreenlock;
     sel -> isfullscreen = fullscreenlock;
-
-    XSync(dpy, True);
 }
 
-Client* nexttiled(Client *next) {
-    if (!next) return NULL;
+Client* nexttiled(Client *next, unsigned int tags) {
+    if (!head || !next) return NULL;
 
-    while (next -> isfloating || !ISVISIBLE(next)) {
+    while (next -> isfloating || !isvisible(next, tags)) {
         next = next -> next;
         if (!next) return NULL;
     }
     return next;
 }
 
-Client* prevtiled(Client *c) {
-    if (!c) return NULL;
+Client* prevtiled(Client *c, unsigned int tags) {
+    if (!head || !c) return NULL;
 
     Client *i = head, *prev = NULL;
     do {
-        if (!i -> isfloating && ISVISIBLE(i)) prev = i;
+        if (!i -> isfloating && isvisible(i, tags)) prev = i;
         i = i -> next;
     } while (i && i != c);
 
     return prev;
 }
 
-Client* nextvisible(Client *next) {
-    if (!next) return NULL;
+Client* nextvisible(Client *next, unsigned int tags) {
+    if (!head || !next) return NULL;
 
-    while (!ISVISIBLE(next)) {
+    while (!isvisible(next, tags)) {
         next = next -> next;
         if (!next) return NULL;
     }
     return next;
 }
 
-Client* prevvisible(Client *c) {
-    if (!c) return NULL;
+Client* prevvisible(Client *c, unsigned int tags) {
+    if (!head || !c) return NULL;
 
     Client *i = head, *prev = NULL;
     do {
-        if (ISVISIBLE(i)) prev = i;
+        if (isvisible(i, tags)) prev = i;
         i = i -> next;
     } while (i && i != c);
 
@@ -107,7 +105,7 @@ Client* get_visible_head() {
     if (!head) return NULL;
 
     Client *i = head;
-    while (i && !ISVISIBLE(i)) i = i -> next;
+    while (i && !isvisible(i, 0)) i = i -> next;
 
     return i;
 }
@@ -117,7 +115,7 @@ Client* get_visible_tail() {
 
     Client *i = head, *prev;
     while (i) {
-        if (ISVISIBLE(i)) prev = i;
+        if (isvisible(i, 0)) prev = i;
         i = i -> next;
     }
 
@@ -138,10 +136,10 @@ Client *newclient(Window win) {
 void showhide(Client *c) {
     if (!c) return;
 
-    if (ISVISIBLE(c) && c -> isfloating) {
+    if (isvisible(c, 0) && c -> isfloating) {
         XMoveWindow(dpy, c -> win, c -> x, c -> y);
         showhide(c -> next);
-    } else if (!ISVISIBLE(c)) {
+    } else if (!isvisible(c, 0)) {
         showhide(c -> next);
         XGetWindowAttributes(dpy, c -> win, &attr);
         if (attr.x == XDisplayWidth(dpy, screen)) return;
@@ -155,6 +153,8 @@ void showhide(Client *c) {
 
 void killclient(Arg arg) {
     (void)arg;
+    if (!sel) return;
+
     /* send kill signal to window */
     if (!sendevent(sel -> win, XInternAtom(dpy, "WM_DELETE_WINDOW", True))) {
         /* If the client rejects it, we close it down the brutal way */
@@ -185,7 +185,6 @@ void zoom(Arg arg) {
 
     swap(sel, visible_head);
     focus(visible_head);
-    XSync(dpy, True);
 }
 
 void resize(Client *c) {
@@ -194,4 +193,24 @@ void resize(Client *c) {
     c -> width -= gap * 2;
     c -> height -= gap * 2;
     XMoveResizeWindow(dpy, c -> win, c -> x, c -> y, c -> width, c -> height);
+}
+
+void incmaster(Arg arg) {
+    unsigned int n = MAX(arg.i + nmaster, 1);
+    if (n == nmaster) return;
+    nmaster = n;
+    tile();
+}
+
+bool isvisible(Client *c, unsigned int tags) {
+    if (!tags) tags = seltags;
+    if (c -> tags & tags) return 1;
+    return 0;
+}
+
+void setmratio(Arg arg) {
+    float new_mratio = MIN(0.95, MAX(0.05, mratio + arg.f));
+    if (new_mratio == mratio) return;
+    mratio = new_mratio;
+    tile();
 }

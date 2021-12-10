@@ -6,6 +6,7 @@
 #include "client.h"
 
 #define MAX(a, b) (a) > (b) ? (a) : (b)
+#define MIN(a, b) (a) < (b) ? (a) : (b)
 
 void die(char *);
 void sigchld(int);
@@ -23,6 +24,8 @@ extern XWindowAttributes attr;
 extern Client *head, *sel;
 extern bool fullscreenlock;
 extern unsigned int seltags;
+extern unsigned int nmaster;
+extern float mratio;
 
 struct Root {
     Window win;
