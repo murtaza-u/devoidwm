@@ -32,11 +32,13 @@ void maprequest(XEvent *event) {
 
     XMapRequestEvent *ev = &event -> xmaprequest;
 
-    XGetWindowAttributes(dpy, ev -> window, &attr);
+    if (!(XGetWindowAttributes(dpy, ev -> window, &attr))) return;
     if (attr.override_redirect) return; /* docs says window managers must ignore such windows */
 
     /* emit DestroyNotify and EnterNotify event */
     XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask|PropertyChangeMask);
+
+    XMapWindow(dpy, ev -> window);
 
     /* for pinentry-gtk (and maybe some other programs) */
     Client *c;
@@ -57,8 +59,9 @@ void maprequest(XEvent *event) {
         c -> width = attr.width;
         c -> height = attr.height;
         resize(c);
-    } else tile();
-    XMapWindow(dpy, ev -> window);
+    } else if (c -> isfullscr) lock_fullscr(c);
+    else tile();
+
     focus(c);
 }
 
@@ -67,12 +70,11 @@ void destroynotify(XEvent *event) {
     Client *c;
     if (!(c = wintoclient(ev -> window))) return;
     if (get_fullscrlock(c -> tags)) unlock_fullscr(c);
-    unfocus(c);
+    Client *tofocus = unfocus(c);
     detach(c);
     if (isvisible(c, 0)) {
-        tile();
-        Arg arg = {.i = -1};
-        focus_adjacent(arg);
+        if (!c -> isfloating) tile();
+        focus(tofocus);
     }
     free(c);
 }

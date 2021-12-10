@@ -1,8 +1,10 @@
+#include <X11/X.h>
 #include <X11/Xlib.h>
 
 #include "client.h"
 #include "devoid.h"
 #include "mouse.h"
+#include "dwindle.h"
 
 XButtonEvent prev_pointer_position;
 Cursor cursors[CurLast];
@@ -31,7 +33,10 @@ void handle_buttonpress(XEvent *event) {
     prev_pointer_position = event -> xbutton;
 
     Client *c;
-    if ((c = wintoclient(event -> xbutton.subwindow)) && !c -> isfloating) c -> isfloating = 1;
+    if ((c = wintoclient(event -> xbutton.subwindow)) && !c -> isfloating) {
+        c -> isfloating = 1;
+        tile();
+    }
 }
 
 void handle_motionnotify(XEvent *event) {

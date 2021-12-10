@@ -9,6 +9,7 @@
 #include "ewmh.h"
 #include "key.h"
 #include "mouse.h"
+#include "tags.h"
 
 bool isrunning;
 Display *dpy;
@@ -54,7 +55,7 @@ void start() {
     seltags = 1 << 0;
 
     nmaster = 1;
-    mratio = 0.5;
+    mratio = 0.6;
 
     /* for quiting wm */
     isrunning = 1;
@@ -63,7 +64,7 @@ void start() {
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
 
     setup_ewmh_atoms();
-
+    setup_tags();
     setup_cursor();
 }
 

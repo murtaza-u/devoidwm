@@ -10,7 +10,7 @@
 #include "src/focus.h"
 
 /* maximum no. of workspaces */
-#define MAX_WORKSPACES 9
+// #define MAX_WORKSPACES 9
 
 /* size of the master window range -> (0, 1) */
 // static float mratio = 0.5;
@@ -19,18 +19,18 @@
 // static unsigned int nmaster = 1;
 
 /* margin */
-static unsigned int margin_top = 6;
-static unsigned int margin_right = 6;
-static unsigned int margin_bottom = 6;
-static unsigned int margin_left = 6;
+// static unsigned int margin_top = 6;
+// static unsigned int margin_right = 6;
+// static unsigned int margin_bottom = 6;
+// static unsigned int margin_left = 6;
 
 /* gap between 2 windows */
-static unsigned int gap = 10;
+static unsigned int gap = 5;
 
 /* Border around windows */
-static char focused_border_color[] = "#ffffff";
-static char normal_border_color[] = "#10151a";
-static unsigned int border_width = 1;
+// static char focused_border_color[] = "#ffffff";
+// static char normal_border_color[] = "#10151a";
+// static unsigned int border_width = 1;
 
 // static const Rule rules[] = {
 //     /* xprop:

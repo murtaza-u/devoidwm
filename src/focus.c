@@ -56,9 +56,11 @@ Client* get_focus() {
     return NULL;
 }
 
-void unfocus(Client *c) {
+Client* unfocus(Client *c) {
+    Client *prev = NULL;
     for (unsigned int i = 0; i < 9; i ++) {
-        if ((1 << i) & c -> tags && tags[i].focused == c)
-            tags[i].focused = prevvisible(c, 1 << i);
+        if (((1 << i) & c -> tags) && tags[i].focused == c)
+            tags[i].focused = prev = prevvisible(c, 0);
     }
+    return prev;
 }

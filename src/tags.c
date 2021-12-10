@@ -18,16 +18,16 @@ void setup_tags() {
 void view(Arg arg) {
     if (arg.ui == seltags) return;
     seltags = arg.ui;
-    showhide(head);
     tile();
+    showhide(head);
     focus(NULL);
     if (get_fullscrlock(seltags)) lock_fullscr(sel);
 }
 
 void toggletag(Arg arg) {
     seltags ^= arg.ui;
-    showhide(head);
     tile();
+    showhide(head);
 }
 
 void save_fullscrlock(Client *c) {

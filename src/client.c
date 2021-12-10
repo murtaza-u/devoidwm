@@ -190,10 +190,9 @@ void incmaster(Arg arg) {
     tile();
 }
 
-bool isvisible(Client *c, unsigned int tags) {
+unsigned int isvisible(Client *c, unsigned int tags) {
     if (!tags) tags = seltags;
-    if (c -> tags & tags) return 1;
-    return 0;
+    return (c -> tags & tags);
 }
 
 void setmratio(Arg arg) {
@@ -210,7 +209,7 @@ void lock_fullscr(Client *c) {
 }
 
 void unlock_fullscr(Client *c) {
-    tile();
+    if (isvisible(c, 0)) tile();
     c -> isfullscr = 0;
     save_fullscrlock(c);
 }

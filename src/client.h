@@ -37,7 +37,7 @@ void zoom(Arg arg);
 void resize(Client *client);
 void incmaster(Arg arg);
 void setmratio(Arg arg);
-bool isvisible(Client *c, unsigned int tags);
+unsigned int isvisible(Client *c, unsigned int tags);
 void lock_fullscr(Client *c);
 void unlock_fullscr(Client *c);
 
