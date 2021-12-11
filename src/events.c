@@ -115,12 +115,13 @@ void enternotify(XEvent *event) {
 
 void clientmessage(XEvent *event) {
     XClientMessageEvent *ev = &event -> xclient;
-    Client *c = wintoclient(ev -> window);
 
-    if (!c) return;
+    Client *c;
+    if (!(c = wintoclient(ev -> window))) return;
+
     if (ev -> message_type == net_atoms[NetWMState]) {
-        if ((unsigned int long)ev -> data.l[1] == net_atoms[NetWMStatefullscr] ||
-                (unsigned int long)ev -> data.l[2] == net_atoms[NetWMStatefullscr]) {
+        if ((unsigned int long)ev -> data.l[1] == net_atoms[NetWMStateFullscreen] ||
+            (unsigned int long)ev -> data.l[2] == net_atoms[NetWMStateFullscreen]) {
             if (c -> isfullscr) unlock_fullscr(c);
             else lock_fullscr(c);
         }

@@ -15,7 +15,7 @@
 enum { NetSupported, NetCurrentDesktop, NetNumberOfDesktops, NetWMWindowType,
     NetWMWindowTypeDialog, NetWMWindowTypeMenu, NetWMWindowTypeSplash,
     NetWMWindowTypeToolbar, NetWMWindowTypeUtility, NetWMState,
-    NetWMStatefullscr, NetWMStateAbove, NetActiveWindow, NetLast };
+    NetWMStateFullscreen, NetWMStateAbove, NetActiveWindow, NetLast };
 
 extern Atom net_atoms[NetLast];
 
