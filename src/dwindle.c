@@ -1,8 +1,9 @@
+#include <X11/Xlib.h>
+
 #include "dwindle.h"
 #include "client.h"
 #include "devoid.h"
 #include "../config.h"
-#include <X11/Xlib.h>
 
 void shrink(Client *c, int *x, int *y, unsigned int *width, unsigned int *height) {
     if (c -> width >= c -> height) {

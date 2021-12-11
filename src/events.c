@@ -68,7 +68,6 @@ void maprequest(XEvent *event) {
     /* for pinentry-gtk (and maybe some other programs) */
     Client *c;
     if ((c = wintoclient(ev -> window))) {
-        XMapWindow(dpy, ev -> window);
         focus(c);
         return;
     }
@@ -94,31 +93,32 @@ void destroynotify(XEvent *event) {
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     Client *c;
     if (!(c = wintoclient(ev -> window))) return;
-    if (getfullscrlock(c -> tags)) unlock_fullscr(c);
     detach(c);
     detachstack(c);
     if (isvisible(c, 0)) {
         if (!c -> isfloating || c -> isfullscr) tile();
         focus(NULL);
     }
+    if (getfullscrlock(c -> tags)) unlock_fullscr(c);
+    XDestroyWindow(dpy, ev -> window);
     free(c);
 }
 
 void enternotify(XEvent *event) {
     if (sel == NULL) return;
     XCrossingEvent *ev = &event -> xcrossing;
-    Client *c;
+    Client *c = NULL;
     if ((c = wintoclient(ev -> window))) focus(c);
 }
 
 void clientmessage(XEvent *event) {
-    XClientMessageEvent *client_msg_event = &event -> xclient;
-    Client *c = wintoclient(client_msg_event -> window);
+    XClientMessageEvent *ev = &event -> xclient;
+    Client *c = wintoclient(ev -> window);
 
     if (!c) return;
-    if (client_msg_event -> message_type == net_atoms[NetWMState]) {
-        if ((unsigned int long)client_msg_event -> data.l[1] == net_atoms[NetWMStatefullscr] ||
-                (unsigned int long)client_msg_event -> data.l[2] == net_atoms[NetWMStatefullscr])
+    if (ev -> message_type == net_atoms[NetWMState]) {
+        if ((unsigned int long)ev -> data.l[1] == net_atoms[NetWMStatefullscr] ||
+                (unsigned int long)ev -> data.l[2] == net_atoms[NetWMStatefullscr])
             togglefullscr((Arg){0});
     }
 }

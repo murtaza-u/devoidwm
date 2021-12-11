@@ -9,25 +9,25 @@
 #include "src/tags.h"
 #include "src/focus.h"
 
-/* size of the master window range -> [0.05, 0.95] */
-/* static float mratio = 0.5; */
+/* size of the master window. Range -> [0.05, 0.95] */
+extern float mratio;
 
 /* no. of windows in the master area */
-/* static unsigned int nmaster = 1; */
+extern unsigned int nmaster;
 
 /* margin */
-static unsigned int margin_top = 0;
-static unsigned int margin_right = 0;
-static unsigned int margin_bottom = 0;
-static unsigned int margin_left = 0;
+extern unsigned int margin_top;
+extern unsigned int margin_right;
+extern unsigned int margin_bottom;
+extern unsigned int margin_left;
 
 /* gap between 2 windows */
-/* static unsigned int gap = 5; */
+extern unsigned int gap;
 
 /* Border around windows */
-static const char focused_border_color[] = "#ffffff";
+static const char focused_border_color[] = "#7ea89e";
 static const char normal_border_color[] = "#10151a";
-static const unsigned int border_width = 1;
+static const unsigned int border_width = 2;
 
 // static const Rule rules[] = {
 //     /* xprop:

@@ -23,8 +23,6 @@ extern int screen;
 extern XWindowAttributes attr;
 extern Client *head, *sel, *stack;
 extern unsigned int seltags, nmaster, selbpx, normbpx;
-extern float mratio;
-extern int gap;
 
 struct Root {
     Window win;

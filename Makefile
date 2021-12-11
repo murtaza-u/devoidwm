@@ -8,7 +8,7 @@ VPATH=src
 all: devoid
 
 devoid:
-	$(CC) $(VPATH)/*.c -o devoid $(LIBS) $(LDFLAGS)
+	$(CC) config.c $(VPATH)/*.c -o devoid $(LIBS) $(LDFLAGS)
 
 install: all
 	install -d $(DESTDIR)$(BINDIR)

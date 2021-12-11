@@ -17,16 +17,19 @@ void focus(Client *c) {
         }
     }
 
-    CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&c -> win, 1);
-    sendevent(c -> win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
-    XSetInputFocus(dpy, c -> win, RevertToPointerRoot, CurrentTime);
-    if (c -> isfloating) XRaiseWindow(dpy, c -> win);
-
-    for (Client *i = nexttiled(head, 0); i; i = nexttiled(i -> next, 0)) {
+    for (Client *i = nextvisible(head, 0); i; i = nextvisible(i -> next, 0)) {
         XSetWindowBorderWidth(dpy, i -> win, border_width);
+
         if (i == c) XSetWindowBorder(dpy, i -> win, selbpx);
         else XSetWindowBorder(dpy, i -> win, normbpx);
     }
+
+    XSetInputFocus(dpy, c -> win, RevertToPointerRoot, CurrentTime);
+
+    if (c -> isfloating) XRaiseWindow(dpy, c -> win);
+
+    CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&c -> win, 1);
+    sendevent(c -> win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
 
     detachstack(c);
     attachstack(c);
@@ -49,11 +52,6 @@ void focus_adjacent(Arg arg) {
 }
 
 void attachstack(Client *c) {
-    if (!stack) {
-        stack = c;
-        return;
-    }
-
     c -> snext = stack;
     stack = c;
 }
@@ -62,7 +60,7 @@ void detachstack(Client *c) {
     if (!stack) return;
 
     if (stack == c) {
-        stack = c -> snext;
+        stack = stack -> snext;
         return;
     }
 

@@ -16,9 +16,7 @@ Display *dpy;
 XWindowAttributes attr;
 int screen;
 Client *head, *sel, *stack;
-unsigned int seltags, nmaster, selbpx, normbpx;
-float mratio;
-int gap;
+unsigned int seltags, selbpx, normbpx;
 struct Root root;
 
 #include "../config.h"
@@ -55,9 +53,8 @@ void start() {
 
     seltags = 1 << 0;
 
-    nmaster = 1;
-    mratio = 0.5;
-    gap = 5 + border_width;
+    /* minium gap around window */
+    gap += border_width;
 
     /* for quiting wm */
     isrunning = 1;
@@ -65,7 +62,7 @@ void start() {
     /* get MapRequest events */
     XSelectInput(dpy, root.win, SubstructureRedirectMask);
 
-    /* initialising colors */
+    /* initializing colors */
     selbpx = getcolor(focused_border_color);
     normbpx = getcolor(normal_border_color);
 

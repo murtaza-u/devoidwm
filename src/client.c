@@ -21,18 +21,22 @@ void attach(Client *c) {
 }
 
 void detach(Client *c) {
-    if (c == head) {
-        head = c -> next;
+    if (head == c) {
+        head = head -> next;
         return;
     }
 
     Client *i = head;
-    while (i -> next != c) i = i -> next;
+    while (i -> next != c) {
+        i = i -> next;
+        if (!i) return;
+    }
     i -> next = c -> next;
 }
 
 Client* wintoclient(Window win) {
-    for (Client *i = head; i; i = i -> next)
+    Client *i;
+    for (i = head; i; i = i -> next)
         if (i -> win == win) return i;
     return NULL;
 }
@@ -209,9 +213,11 @@ void lock_fullscr(Client *c) {
 }
 
 void unlock_fullscr(Client *c) {
-    if (isvisible(c, 0)) tile();
+    if (isvisible(c, 0)) {
+        XSetWindowBorderWidth(dpy, c -> win, border_width);
+        tile();
+    }
     c -> isfullscr = 0;
-    XSetWindowBorderWidth(dpy, c -> win, border_width);
     XSync(dpy, true);
 }
 

@@ -19,12 +19,10 @@ struct Client {
 void attach(Client *client);
 void detach(Client *client);
 Client* wintoclient(Window win);
-
 Client* nexttiled(Client *c, unsigned int tags);
 Client* prevtiled(Client *c, unsigned int tags);
 Client* nextvisible(Client *c, unsigned int tags);
 Client* prevvisible(Client *c, unsigned int tags);
-
 Client* newclient(Window win);
 Client* get_visible_head();
 Client* get_visible_tail();
