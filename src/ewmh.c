@@ -35,6 +35,8 @@ void setup_ewmh_atoms() {
     net_atoms[NetWMWindowTypeToolbar] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_TOOLBAR");
     net_atoms[NetWMWindowTypeUtility] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_UTILITY");
     net_atoms[NetActiveWindow] = GETATOMIDENTIFIER("_NET_ACTIVE_WINDOW");
+
+    CHANGEATOMPROP(net_atoms[NetSupported], XA_ATOM, (unsigned char *)net_atoms, NetLast);
 }
 
 void apply_window_state(Client *c) {

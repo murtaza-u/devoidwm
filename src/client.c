@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -177,6 +178,7 @@ void zoom(Arg arg) {
 
     swap(sel, visible_head);
     focus(visible_head);
+    XSync(dpy, True);
 }
 
 void resize(Client *c) {

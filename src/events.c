@@ -120,8 +120,10 @@ void clientmessage(XEvent *event) {
     if (!c) return;
     if (ev -> message_type == net_atoms[NetWMState]) {
         if ((unsigned int long)ev -> data.l[1] == net_atoms[NetWMStatefullscr] ||
-                (unsigned int long)ev -> data.l[2] == net_atoms[NetWMStatefullscr])
-            togglefullscr((Arg){0});
+                (unsigned int long)ev -> data.l[2] == net_atoms[NetWMStatefullscr]) {
+            if (c -> isfullscr) unlock_fullscr(c);
+            else lock_fullscr(c);
+        }
     }
 }
 
@@ -133,5 +135,5 @@ void (*handle_events[LASTEvent])(XEvent *event) = {
     [MapRequest] = maprequest,
     [DestroyNotify] = destroynotify,
     [EnterNotify] = enternotify,
-    [ClientMessage] = clientmessage,
+    [ClientMessage] = clientmessage
 };

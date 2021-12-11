@@ -18,8 +18,8 @@ void focus(Client *c) {
     }
 
     for (Client *i = nextvisible(head, 0); i; i = nextvisible(i -> next, 0)) {
+        if (i -> isfullscr) continue;
         XSetWindowBorderWidth(dpy, i -> win, border_width);
-
         if (i == c) XSetWindowBorder(dpy, i -> win, selbpx);
         else XSetWindowBorder(dpy, i -> win, normbpx);
     }

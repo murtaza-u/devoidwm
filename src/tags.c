@@ -14,12 +14,14 @@ void view(Arg arg) {
     tile();
     focus(NULL);
     if (getfullscrlock(seltags)) lock_fullscr(sel);
+    XSync(dpy, True);
 }
 
 void toggletag(Arg arg) {
     seltags ^= arg.ui;
     showhide(head);
     tile();
+    XSync(dpy, True);
 }
 
 bool getfullscrlock(unsigned int tags) {
@@ -35,4 +37,5 @@ void tag(Arg arg) {
     XMoveWindow(dpy, sel -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
     if (!sel -> isfloating) tile();
     focus(NULL);
+    XSync(dpy, True);
 }
