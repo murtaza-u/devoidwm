@@ -10,6 +10,7 @@
 #include "key.h"
 #include "mouse.h"
 #include "tags.h"
+#include "../config.h"
 
 bool isrunning;
 Display *dpy;
@@ -18,8 +19,6 @@ int screen;
 Client *head, *sel, *stack;
 unsigned int seltags, selbpx, normbpx;
 struct Root root;
-
-#include "../config.h"
 
 int main() {
     start();

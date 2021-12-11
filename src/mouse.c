@@ -39,15 +39,18 @@ void handle_motionnotify(XEvent *event) {
     int dy = event -> xbutton.y_root - prev_pointer_position.y_root;
     bool isLeftClick = prev_pointer_position.button == 1;
 
-    if (!sel -> isfloating) {
-        sel -> isfloating = 1;
+    Client *c;
+    if (!(c = wintoclient(event -> xbutton.window))) return;
+
+    if (!c -> isfloating) {
+        c -> isfloating = 1;
         tile();
     }
 
-    sel -> x = attr.x + (isLeftClick ? dx : 0);
-    sel -> y = attr.y + (isLeftClick ? dy : 0);
-    sel -> width = MAX(1, attr.width + (isLeftClick ? 0 : dx));
-    sel -> height = MAX(1, attr.height + (isLeftClick ? 0 : dy));
+    c -> x = attr.x + (isLeftClick ? dx : 0);
+    c -> y = attr.y + (isLeftClick ? dy : 0);
+    c -> width = MAX(1, attr.width + (isLeftClick ? 0 : dx));
+    c -> height = MAX(1, attr.height + (isLeftClick ? 0 : dy));
 
-    resize(sel);
+    resize(c);
 }

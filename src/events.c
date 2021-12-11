@@ -87,6 +87,7 @@ void maprequest(XEvent *event) {
     else tile();
 
     focus(c);
+    XSync(dpy, True);
 }
 
 void destroynotify(XEvent *event) {
@@ -102,6 +103,7 @@ void destroynotify(XEvent *event) {
     if (getfullscrlock(c -> tags)) unlock_fullscr(c);
     XDestroyWindow(dpy, ev -> window);
     free(c);
+    XSync(dpy, True);
 }
 
 void enternotify(XEvent *event) {

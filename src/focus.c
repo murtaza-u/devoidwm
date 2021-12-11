@@ -34,7 +34,6 @@ void focus(Client *c) {
     detachstack(c);
     attachstack(c);
     sel = c;
-    XSync(dpy, True);
 }
 
 void focus_adjacent(Arg arg) {
