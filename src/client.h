@@ -11,7 +11,7 @@ struct Client {
     Window win;
     int x, y;
     unsigned int width, height;
-    Client *next;
+    Client *next, *snext;
     bool isfloating, isfullscr;
     unsigned int tags;
 };

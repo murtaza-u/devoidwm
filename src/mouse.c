@@ -31,12 +31,6 @@ void handle_buttonpress(XEvent *event) {
 
     XGetWindowAttributes(dpy, event -> xbutton.subwindow, &attr);
     prev_pointer_position = event -> xbutton;
-
-    Client *c;
-    if ((c = wintoclient(event -> xbutton.subwindow)) && !c -> isfloating) {
-        c -> isfloating = 1;
-        tile();
-    }
 }
 
 void handle_motionnotify(XEvent *event) {
@@ -44,6 +38,11 @@ void handle_motionnotify(XEvent *event) {
     int dx = event -> xbutton.x_root - prev_pointer_position.x_root;
     int dy = event -> xbutton.y_root - prev_pointer_position.y_root;
     bool isLeftClick = prev_pointer_position.button == 1;
+
+    if (!sel -> isfloating) {
+        sel -> isfloating = 1;
+        tile();
+    }
 
     sel -> x = attr.x + (isLeftClick ? dx : 0);
     sel -> y = attr.y + (isLeftClick ? dy : 0);

@@ -7,24 +7,20 @@
 #include "../config.h"
 
 void focus(Client *c) {
-    if (!c) {
-        c = get_focus();
+    if (!c || !isvisible(c, 0)) {
+        for (c = stack; c && !isvisible(c, 0); c = c -> snext);
         if (!c) {
-            c = get_visible_head();
-            if (!c ) {
-                XSetInputFocus(dpy, root.win, RevertToPointerRoot, CurrentTime);
-                XDeleteProperty(dpy, root.win, net_atoms[NetActiveWindow]);
-                sel = NULL;
-                return;
-            }
+            XSetInputFocus(dpy, root.win, RevertToPointerRoot, CurrentTime);
+            XDeleteProperty(dpy, root.win, net_atoms[NetActiveWindow]);
+            sel = NULL;
+            return;
         }
     }
 
-    XSetInputFocus(dpy, c -> win, RevertToPointerRoot, CurrentTime);
-    if (c -> isfloating) XRaiseWindow(dpy, c -> win);
-
     CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&c -> win, 1);
     sendevent(c -> win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
+    XSetInputFocus(dpy, c -> win, RevertToPointerRoot, CurrentTime);
+    if (c -> isfloating) XRaiseWindow(dpy, c -> win);
 
     for (Client *i = nexttiled(head, 0); i; i = nexttiled(i -> next, 0)) {
         XSetWindowBorderWidth(dpy, i -> win, border_width);
@@ -32,13 +28,14 @@ void focus(Client *c) {
         else XSetWindowBorder(dpy, i -> win, normbpx);
     }
 
-    save_focus(c);
+    detachstack(c);
+    attachstack(c);
     sel = c;
     XSync(dpy, True);
 }
 
 void focus_adjacent(Arg arg) {
-    if (!sel) return;
+    if (!sel || getfullscrlock(0)) return;
 
     if (arg.i > 0) {
         Client *next = nextvisible(sel -> next, 0);
@@ -51,26 +48,28 @@ void focus_adjacent(Arg arg) {
     }
 }
 
-void save_focus(Client *c) {
-    for (unsigned int i = 0; i < 9; i ++) {
-        if ((1 << i) & c -> tags) {
-            tags[i].focused = c;
-            tags[i].fullscrlock = c -> isfullscr;
-        }
+void attachstack(Client *c) {
+    if (!stack) {
+        stack = c;
+        return;
     }
+
+    c -> snext = stack;
+    stack = c;
 }
 
-Client* get_focus() {
-    for (unsigned int i = 0; i < 9; i ++)
-        if ((1 << i) & seltags) return tags[i].focused;
-    return NULL;
-}
+void detachstack(Client *c) {
+    if (!stack) return;
 
-Client* unfocus(Client *c) {
-    Client *tofocus = NULL;
-    for (unsigned int i = 0; i < 9; i ++) {
-        if (((1 << i) & c -> tags) && tags[i].focused == c)
-            tags[i].focused = tofocus = prevvisible(c, c -> tags);
+    if (stack == c) {
+        stack = c -> snext;
+        return;
     }
-    return tofocus;
+
+    Client *i = stack;
+    while (i -> snext != c) {
+        i = i -> snext;
+        if (!i) return;
+    }
+    i -> snext = c -> snext;
 }

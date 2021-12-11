@@ -1,4 +1,4 @@
-#include <X11/Xlib.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include "devoid.h"
@@ -6,8 +6,8 @@
 #include "dwindle.h"
 #include "events.h"
 #include "ewmh.h"
-#include "../config.h"
 #include "tags.h"
+#include "../config.h"
 
 void attach(Client *c) {
     if (!head) {
@@ -117,7 +117,7 @@ Client *newclient(Window win) {
 
     c -> win = win;
     c -> tags = seltags;
-    c -> next = NULL;
+    c -> next = c -> snext = NULL;
     return c;
 }
 
@@ -205,15 +205,14 @@ void setmratio(Arg arg) {
 void lock_fullscr(Client *c) {
     XMoveResizeWindow(dpy, c -> win, 0, 0, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
     c -> isfullscr = 1;
-    save_fullscrlock(c);
     XSetWindowBorderWidth(dpy, c -> win, 0);
 }
 
 void unlock_fullscr(Client *c) {
     if (isvisible(c, 0)) tile();
     c -> isfullscr = 0;
-    save_fullscrlock(c);
     XSetWindowBorderWidth(dpy, c -> win, border_width);
+    XSync(dpy, true);
 }
 
 unsigned int getcolor(const char *color) {

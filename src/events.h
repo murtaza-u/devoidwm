@@ -3,6 +3,8 @@
 
 #include <X11/Xlib.h>
 
+bool sendevent(Window win, Atom proto);
+
 /* event handlers */
 void keypress(XEvent *event);
 void buttonpress(XEvent *event);
@@ -13,7 +15,6 @@ void destroynotify(XEvent *event);
 void enternotify(XEvent *event);
 void clientmessage(XEvent *event);
 
-void handle_event(XEvent *event);
-bool sendevent(Window win, Atom proto);
+extern void (*handle_events[LASTEvent])(XEvent *event);
 
 #endif

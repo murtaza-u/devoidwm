@@ -7,22 +7,13 @@
 #include "tags.h"
 #include "focus.h"
 
-struct Tag tags[9];
-
-void setup_tags() {
-    for (unsigned int i = 0; i < 9; i ++) {
-        tags[i].focused = NULL;
-        tags[i].fullscrlock = 0;
-    }
-}
-
 void view(Arg arg) {
     if (arg.ui == seltags) return;
     seltags = arg.ui;
     showhide(head);
     tile();
     focus(NULL);
-    if (get_fullscrlock(seltags)) lock_fullscr(sel);
+    if (getfullscrlock(seltags)) lock_fullscr(sel);
 }
 
 void toggletag(Arg arg) {
@@ -31,23 +22,17 @@ void toggletag(Arg arg) {
     tile();
 }
 
-void save_fullscrlock(Client *c) {
-    for (unsigned int i = 0; i < 9; i ++)
-        if ((1 << i) & c -> tags) tags[i].fullscrlock = c -> isfullscr;
-}
-
-bool get_fullscrlock(unsigned int t) {
-    for (unsigned int i = 0; i < 9; i ++)
-        if ((1 << i) & t) return tags[i].fullscrlock;
-    return 0;
+bool getfullscrlock(unsigned int tags) {
+    Client *c;
+    for (c = stack; c && !isvisible(c, tags); c = c -> snext);
+    if (!c) return 0;
+    return c -> isfullscr;
 }
 
 void tag(Arg arg) {
     if (arg.ui == sel -> tags) return;
-    Client *c = sel;
-    focus(unfocus(sel));
-    c -> tags = arg.ui;
-    save_focus(c);
-    XMoveWindow(dpy, c -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
-    if (!c -> isfloating) tile();
+    sel -> tags = arg.ui;
+    XMoveWindow(dpy, sel -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
+    if (!sel -> isfloating) tile();
+    focus(NULL);
 }

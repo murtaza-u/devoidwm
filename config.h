@@ -9,28 +9,25 @@
 #include "src/tags.h"
 #include "src/focus.h"
 
-/* maximum no. of workspaces */
-// #define MAX_WORKSPACES 9
-
-/* size of the master window range -> (0, 1) */
-// static float mratio = 0.5;
+/* size of the master window range -> [0.05, 0.95] */
+/* static float mratio = 0.5; */
 
 /* no. of windows in the master area */
-// static unsigned int nmaster = 1;
+/* static unsigned int nmaster = 1; */
 
 /* margin */
-// static unsigned int margin_top = 6;
-// static unsigned int margin_right = 6;
-// static unsigned int margin_bottom = 6;
-// static unsigned int margin_left = 6;
+static unsigned int margin_top = 0;
+static unsigned int margin_right = 0;
+static unsigned int margin_bottom = 0;
+static unsigned int margin_left = 0;
 
 /* gap between 2 windows */
-static unsigned int gap = 5;
+/* static unsigned int gap = 5; */
 
 /* Border around windows */
-static char focused_border_color[] = "#ffffff";
-static char normal_border_color[] = "#10151a";
-static unsigned int border_width = 1;
+static const char focused_border_color[] = "#ffffff";
+static const char normal_border_color[] = "#10151a";
+static const unsigned int border_width = 1;
 
 // static const Rule rules[] = {
 //     /* xprop:
@@ -63,10 +60,6 @@ static const Key keys[] = {
     /* swap slave window with the master window */
     {MODKEY, XK_space, zoom, {0}},
 
-    /* rotate a window through the stack */
-    // {MODKEY|ShiftMask, XK_j, move_client, {.i = 1}},
-    // {MODKEY|ShiftMask, XK_k, move_client, {.i = -1}},
-
     /* kill a window */
     {MODKEY, XK_x, killclient, {0}},
 
@@ -81,7 +74,6 @@ static const Key keys[] = {
     {MODKEY, XK_i, incmaster, {.i = 1}},
     {MODKEY, XK_d, incmaster, {.i = -1}},
 
-    /* switch workspaces */
     {MODKEY, XK_0, view, {.ui = (1 << 9) - 1}},
     {MODKEY, XK_1, view, {.ui = 1 << 0}},
     {MODKEY, XK_2, view, {.ui = 1 << 1}},

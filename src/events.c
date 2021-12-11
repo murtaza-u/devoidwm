@@ -11,6 +11,30 @@
 #include "mouse.h"
 #include "tags.h"
 
+/* Taken from dwm */
+bool sendevent(Window win, Atom proto) {
+    int n;
+    Atom *protocols;
+    bool exists = false;
+    XEvent ev;
+
+    if (XGetWMProtocols(dpy, win, &protocols, &n)) {
+        while (!exists && n--) exists = protocols[n] == proto;
+        XFree(protocols);
+    }
+
+    if (exists) {
+        ev.type = ClientMessage;
+        ev.xclient.window = win;
+        ev.xclient.message_type = XInternAtom(dpy, "WM_PROTOCOLS", True);
+        ev.xclient.format = 32;
+        ev.xclient.data.l[0] = proto;
+        ev.xclient.data.l[1] = CurrentTime;
+        XSendEvent(dpy, win, False, NoEventMask, &ev);
+    }
+    return exists;
+}
+
 void keypress(XEvent *event) {
     handle_keypress(event);
 }
@@ -19,7 +43,8 @@ void buttonpress(XEvent *event) {
     handle_buttonpress(event);
 }
 
-void buttonrelease() {
+void buttonrelease(XEvent *event) {
+    (void)event;
     XUngrabPointer(dpy, CurrentTime);
 }
 
@@ -28,7 +53,7 @@ void motionnotify(XEvent *event) {
 }
 
 void maprequest(XEvent *event) {
-    if (get_fullscrlock(seltags)) unlock_fullscr(sel);
+    if (getfullscrlock(seltags)) unlock_fullscr(sel);
 
     XMapRequestEvent *ev = &event -> xmaprequest;
 
@@ -69,12 +94,12 @@ void destroynotify(XEvent *event) {
     XDestroyWindowEvent *ev = &event -> xdestroywindow;
     Client *c;
     if (!(c = wintoclient(ev -> window))) return;
-    if (get_fullscrlock(c -> tags)) unlock_fullscr(c);
-    Client *tofocus = unfocus(c);
+    if (getfullscrlock(c -> tags)) unlock_fullscr(c);
     detach(c);
+    detachstack(c);
     if (isvisible(c, 0)) {
-        if (!c -> isfloating) tile();
-        focus(tofocus);
+        if (!c -> isfloating || c -> isfullscr) tile();
+        focus(NULL);
     }
     free(c);
 }
@@ -98,62 +123,13 @@ void clientmessage(XEvent *event) {
     }
 }
 
-void handle_event(XEvent *event) {
-    switch (event -> type) {
-        case KeyPress:
-            keypress(event);
-            break;
-
-        case ButtonPress:
-            buttonpress(event);
-            break;
-
-        case ButtonRelease:
-            buttonrelease();
-            break;
-
-        case MotionNotify:
-            motionnotify(event);
-            break;
-
-        case MapRequest:
-            maprequest(event);
-            break;
-
-        case DestroyNotify:
-            destroynotify(event);
-            break;
-
-        case EnterNotify:
-            enternotify(event);
-            break;
-
-        case ClientMessage:
-            clientmessage(event);
-            break;
-    }
-}
-
-/* Taken from dwm */
-bool sendevent(Window win, Atom proto) {
-    int n;
-    Atom *protocols;
-    bool exists = false;
-    XEvent ev;
-
-    if (XGetWMProtocols(dpy, win, &protocols, &n)) {
-        while (!exists && n--) exists = protocols[n] == proto;
-        XFree(protocols);
-    }
-
-    if (exists) {
-        ev.type = ClientMessage;
-        ev.xclient.window = win;
-        ev.xclient.message_type = XInternAtom(dpy, "WM_PROTOCOLS", True);
-        ev.xclient.format = 32;
-        ev.xclient.data.l[0] = proto;
-        ev.xclient.data.l[1] = CurrentTime;
-        XSendEvent(dpy, win, False, NoEventMask, &ev);
-    }
-    return exists;
-}
+void (*handle_events[LASTEvent])(XEvent *event) = {
+    [KeyPress] = keypress,
+    [ButtonPress] = buttonpress,
+    [ButtonRelease] = buttonrelease,
+    [MotionNotify] = motionnotify,
+    [MapRequest] = maprequest,
+    [DestroyNotify] = destroynotify,
+    [EnterNotify] = enternotify,
+    [ClientMessage] = clientmessage,
+};

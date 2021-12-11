@@ -5,8 +5,7 @@
 
 void focus(Client *c);
 void focus_adjacent(Arg arg);
-void save_focus(Client *c);
-Client* get_focus();
-Client* unfocus(Client *c);
+void attachstack(Client *c);
+void detachstack(Client *c);
 
 #endif

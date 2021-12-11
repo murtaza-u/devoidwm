@@ -15,9 +15,10 @@ bool isrunning;
 Display *dpy;
 XWindowAttributes attr;
 int screen;
-Client *head, *sel;
+Client *head, *sel, *stack;
 unsigned int seltags, nmaster, selbpx, normbpx;
 float mratio;
+int gap;
 struct Root root;
 
 #include "../config.h"
@@ -45,17 +46,18 @@ void start() {
 
     /* root window */
     root.win = DefaultRootWindow(dpy);
-    root.x = 0;
-    root.y = 0;
-    root.width = XDisplayWidth(dpy, screen);
-    root.height = XDisplayHeight(dpy, screen);
+    root.x = margin_left;
+    root.y = margin_top;
+    root.width = XDisplayWidth(dpy, screen) - (margin_left + margin_right);
+    root.height = XDisplayHeight(dpy, screen) - (margin_top + margin_bottom);
 
-    head = sel = NULL;
+    head = sel = stack = NULL;
 
     seltags = 1 << 0;
 
     nmaster = 1;
-    mratio = 0.6;
+    mratio = 0.5;
+    gap = 5 + border_width;
 
     /* for quiting wm */
     isrunning = 1;
@@ -68,7 +70,6 @@ void start() {
     normbpx = getcolor(normal_border_color);
 
     setup_ewmh_atoms();
-    setup_tags();
     setup_cursor();
 }
 
@@ -85,7 +86,8 @@ void grab() {
 
 void loop() {
     XEvent ev;
-    while (isrunning && !XNextEvent(dpy, &ev)) handle_event(&ev);
+    while (isrunning && !XNextEvent(dpy, &ev))
+        if (handle_events[ev.type]) handle_events[ev.type](&ev);
 }
 
 void stop() {
