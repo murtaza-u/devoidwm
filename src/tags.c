@@ -18,6 +18,7 @@ void view(Arg arg) {
 }
 
 void toggletag(Arg arg) {
+    if (arg.ui == seltags) return;
     seltags ^= arg.ui;
     showhide(head);
     tile();
