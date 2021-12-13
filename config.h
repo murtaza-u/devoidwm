@@ -8,6 +8,7 @@
 #include "src/client.h"
 #include "src/tags.h"
 #include "src/focus.h"
+#include "src/rules.h"
 
 /* size of the master window. Range -> [0.05, 0.95] */
 extern float mratio;
@@ -29,16 +30,16 @@ static const char focused_border_color[] = "#7ea89e";
 static const char normal_border_color[] = "#10151a";
 static const unsigned int border_width = 2;
 
-// static const Rule rules[] = {
-//     /* xprop:
-//      * WM_CLASS(STRING) = class
-//      * WM_NAME(STRING) = title
-//      */
-//
-//     /* class            title       isfloating      isfullscreen */
-//     {"Gcolor3",         NULL,       1,              0            },
-//     {"mpv",             NULL,       0,              1            },
-// };
+static const Rule rules[] = {
+    /* xprop:
+     * WM_CLASS(STRING) = class
+     * WM_NAME(STRING) = title
+     */
+
+    /* class            title       isfloating      isfullscreen */
+    {"Gcolor3",         NULL,       1,              0            },
+    {"mpv",             NULL,       0,              1            },
+};
 
 /* Mod4Mask -> super key
  * Mod1Mask -> Alt key

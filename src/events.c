@@ -9,6 +9,7 @@
 #include "key.h"
 #include "ewmh.h"
 #include "mouse.h"
+#include "rules.h"
 #include "tags.h"
 
 /* Taken from dwm */
@@ -76,6 +77,8 @@ void maprequest(XEvent *event) {
 
     attach(c);
     apply_window_state(c);
+    apply_rules(c);
+
     if (c -> isfloating) {
         XGetWindowAttributes(dpy, c -> win, &attr);
         c -> x = attr.x;
