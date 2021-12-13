@@ -14,6 +14,7 @@ void maprequest(XEvent *event);
 void destroynotify(XEvent *event);
 void enternotify(XEvent *event);
 void clientmessage(XEvent *event);
+void unmapnotify(XEvent *e);
 
 extern void (*handle_events[LASTEvent])(XEvent *event);
 

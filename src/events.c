@@ -131,6 +131,18 @@ void clientmessage(XEvent *event) {
     }
 }
 
+void unmapnotify(XEvent *e) {
+    XUnmapEvent *ev = &e -> xunmap;
+    Client *c;
+
+    if ((c = wintoclient(ev -> window))) {
+        detach(c);
+        detachstack(c);
+        free(c);
+        tile();
+    }
+}
+
 void (*handle_events[LASTEvent])(XEvent *event) = {
     [KeyPress] = keypress,
     [ButtonPress] = buttonpress,
@@ -139,5 +151,6 @@ void (*handle_events[LASTEvent])(XEvent *event) = {
     [MapRequest] = maprequest,
     [DestroyNotify] = destroynotify,
     [EnterNotify] = enternotify,
-    [ClientMessage] = clientmessage
+    [ClientMessage] = clientmessage,
+    [UnmapNotify] = unmapnotify,
 };
