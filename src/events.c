@@ -1,4 +1,5 @@
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -136,10 +137,18 @@ void unmapnotify(XEvent *e) {
     Client *c;
 
     if ((c = wintoclient(ev -> window))) {
-        detach(c);
-        detachstack(c);
-        free(c);
-        tile();
+		if (ev -> send_event) {
+            long data[] = {WithdrawnState, None};
+            XChangeProperty(dpy, c->win, XInternAtom(dpy, "WM_STATE", False),
+                            XInternAtom(dpy, "WM_STATE", False), 32,
+                            PropModeReplace, (unsigned char *)data, 2);
+        } else {
+            detach(c);
+            detachstack(c);
+            free(c);
+            tile();
+            focus(NULL);
+        }
     }
 }
 
