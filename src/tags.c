@@ -11,9 +11,9 @@ void view(Arg arg) {
     if (arg.ui == seltags) return;
     seltags = arg.ui;
     showhide(head);
-    tile();
     focus(NULL);
     if (getfullscrlock(seltags)) lock_fullscr(sel);
+    else tile();
     XSync(dpy, True);
 }
 
