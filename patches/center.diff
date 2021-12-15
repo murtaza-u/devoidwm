@@ -1,0 +1,15 @@
+diff --git a/src/events.c b/src/events.c
+index cf221df..0410650 100644
+--- a/src/events.c
++++ b/src/events.c
+@@ -82,8 +82,8 @@ void maprequest(XEvent *event) {
+ 
+     if (c -> isfloating) {
+         XGetWindowAttributes(dpy, c -> win, &attr);
+-        c -> x = attr.x;
+-        c -> y = attr.y;
++        c -> x = XDisplayWidth(dpy, screen)/2 - attr.width/2;
++        c -> y = XDisplayHeight(dpy, screen)/2 - attr.height/2;
+         c -> width = attr.width;
+         c -> height = attr.height;
+         resize(c);
