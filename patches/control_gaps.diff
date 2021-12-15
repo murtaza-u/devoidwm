@@ -1,0 +1,41 @@
+diff --git a/config.h b/config.h
+index 7c46c16..c2fd412 100644
+--- a/config.h
++++ b/config.h
+@@ -107,6 +107,9 @@ static const Key keys[] = {
+     {MODKEY|ShiftMask, XK_7, tag, {.ui = 1 << 6}},
+     {MODKEY|ShiftMask, XK_8, tag, {.ui = 1 << 7}},
+     {MODKEY|ShiftMask, XK_9, tag, {.ui = 1 << 8}},
++
++    {MODKEY, XK_equal, incgap, {.i = 2}},
++    {MODKEY, XK_minus, incgap, {.i = -2}},
+ };
+ 
+ #endif
+diff --git a/src/client.c b/src/client.c
+index 15a9687..29c5b63 100644
+--- a/src/client.c
++++ b/src/client.c
+@@ -231,3 +231,11 @@ unsigned int getcolor(const char *color) {
+ 
+     return c.pixel;
+ }
++
++void incgap(Arg arg) {
++    if (getfullscrlock(0)) return;
++    int newgap = MAX(border_width + 3, arg.i + gap);
++    if (newgap == gap) return;
++    gap = (unsigned int)newgap;
++    tile();
++}
+diff --git a/src/client.h b/src/client.h
+index 505541b..d5acab6 100644
+--- a/src/client.h
++++ b/src/client.h
+@@ -38,5 +38,6 @@ unsigned int isvisible(Client *c, unsigned int tags);
+ void lock_fullscr(Client *c);
+ void unlock_fullscr(Client *c);
+ unsigned int getcolor(const char *color);
++void incgap(Arg arg);
+ 
+ #endif
