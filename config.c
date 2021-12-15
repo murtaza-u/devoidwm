@@ -11,4 +11,4 @@ unsigned int margin_bottom = 0;
 unsigned int margin_left = 0;
 
 /* gap between 2 windows */
-unsigned int gap = 5;
+unsigned int gap = 0;

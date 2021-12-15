@@ -53,7 +53,7 @@ void start() {
     seltags = 1 << 0;
 
     /* minium gap around window */
-    gap += border_width;
+    gap += border_width + 3;
 
     /* for quiting wm */
     isrunning = 1;
