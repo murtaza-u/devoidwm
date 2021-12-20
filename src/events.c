@@ -65,12 +65,11 @@ void maprequest(XEvent *event) {
     /* emit DestroyNotify and EnterNotify event */
     XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask|PropertyChangeMask);
 
-    XMapWindow(dpy, ev -> window);
-
     /* for pinentry-gtk (and maybe some other programs) */
     Client *c;
     if ((c = wintoclient(ev -> window))) {
         focus(c);
+        XMapWindow(dpy, ev -> window);
         return;
     }
 
@@ -90,6 +89,7 @@ void maprequest(XEvent *event) {
     } else if (c -> isfullscr) lock_fullscr(c);
     else tile();
 
+    XMapWindow(dpy, ev -> window);
     focus(c);
     XSync(dpy, True);
 }
