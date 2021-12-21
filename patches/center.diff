@@ -12,4 +12,4 @@ index cf221df..0410650 100644
 +        c -> y = XDisplayHeight(dpy, screen)/2 - attr.height/2;
          c -> width = attr.width;
          c -> height = attr.height;
-         resize(c);
+         XMoveWindow(dpy, c -> win, c -> x, c -> y);
