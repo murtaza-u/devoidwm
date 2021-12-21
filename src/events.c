@@ -85,7 +85,6 @@ void maprequest(XEvent *event) {
         c -> y = attr.y;
         c -> width = attr.width;
         c -> height = attr.height;
-        resize(c);
     } else if (c -> isfullscr) lock_fullscr(c);
     else tile();
 
