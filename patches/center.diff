@@ -1,8 +1,7 @@
-diff --git a/src/events.c b/src/events.c
-index 93dd08a..5ffffa1 100644
---- a/src/events.c
-+++ b/src/events.c
-@@ -81,10 +81,11 @@ void maprequest(XEvent *event) {
+diff '--color=auto' -ruN src/events.c srcmod/events.c
+--- src/events.c	2022-01-11 10:37:48.918635298 +0530
++++ srcmod/events.c	2022-01-11 10:33:40.808638819 +0530
+@@ -81,10 +81,11 @@
  
      if (c -> isfloating) {
          XGetWindowAttributes(dpy, c -> win, &attr);
