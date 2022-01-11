@@ -1,8 +1,7 @@
-diff --git a/config.h b/config.h
-index 7c46c16..c2fd412 100644
---- a/config.h
-+++ b/config.h
-@@ -107,6 +107,9 @@ static const Key keys[] = {
+diff '--color=auto' -urN devoidwm/config.h devoidwm_mod/config.h
+--- config.h	2022-01-11 10:52:07.608623111 +0530
++++ mod_config.h	2022-01-11 10:50:06.868624824 +0530
+@@ -107,6 +107,9 @@
      {MODKEY|ShiftMask, XK_7, tag, {.ui = 1 << 6}},
      {MODKEY|ShiftMask, XK_8, tag, {.ui = 1 << 7}},
      {MODKEY|ShiftMask, XK_9, tag, {.ui = 1 << 8}},
@@ -12,11 +11,11 @@ index 7c46c16..c2fd412 100644
  };
  
  #endif
-diff --git a/src/client.c b/src/client.c
-index 15a9687..29c5b63 100644
---- a/src/client.c
-+++ b/src/client.c
-@@ -231,3 +231,11 @@ unsigned int getcolor(const char *color) {
+Binary files devoidwm/.git/index and devoidwm_mod/.git/index differ
+diff '--color=auto' -urN devoidwm/src/client.c devoidwm_mod/src/client.c
+--- src/client.c	2022-01-11 10:52:07.608623111 +0530
++++ mod_src/client.c	2022-01-11 10:50:06.868624824 +0530
+@@ -231,3 +231,11 @@
  
      return c.pixel;
  }
@@ -28,11 +27,10 @@ index 15a9687..29c5b63 100644
 +    gap = (unsigned int)newgap;
 +    tile();
 +}
-diff --git a/src/client.h b/src/client.h
-index 505541b..d5acab6 100644
---- a/src/client.h
-+++ b/src/client.h
-@@ -38,5 +38,6 @@ unsigned int isvisible(Client *c, unsigned int tags);
+diff '--color=auto' -urN devoidwm/src/client.h devoidwm_mod/src/client.h
+--- src/client.h	2022-01-11 10:52:07.608623111 +0530
++++ mod_src/client.h	2022-01-11 10:50:06.868624824 +0530
+@@ -38,5 +38,6 @@
  void lock_fullscr(Client *c);
  void unlock_fullscr(Client *c);
  unsigned int getcolor(const char *color);
