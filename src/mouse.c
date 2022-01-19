@@ -5,6 +5,7 @@
 #include "devoid.h"
 #include "mouse.h"
 #include "dwindle.h"
+#include "../config.h"
 
 XButtonEvent prev_pointer_position;
 Cursor cursors[CurLast];
@@ -42,7 +43,7 @@ void handle_motionnotify(XEvent *event) {
     Client *c;
     if (!(c = wintoclient(event -> xbutton.window))) return;
 
-    if (!c -> isfloating) {
+    if (!c -> isfloating && root.layout != FLOATING) {
         c -> isfloating = 1;
         tile();
     }

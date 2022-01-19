@@ -42,10 +42,9 @@ static const Rule rules[] = {
     {"mpv",             NULL,       0,              1            },
 };
 
-static char *layouts[] = {
-    "dwindle",
-    "mirror_dwindle",
-};
+#define DWINDLE 0
+#define MIRROR_DWINDLE 1
+#define FLOATING 2
 
 /* Mod4Mask -> super key
  * Mod1Mask -> Alt key
@@ -114,8 +113,9 @@ static const Key keys[] = {
     {MODKEY|ShiftMask, XK_8, tag, {.ui = 1 << 7}},
     {MODKEY|ShiftMask, XK_9, tag, {.ui = 1 << 8}},
 
-    {MODKEY|ControlMask, XK_d, setlayout, {.ui = 0}},
-    {MODKEY|ControlMask, XK_m, setlayout, {.ui = 1}},
+    {MODKEY|ControlMask, XK_d, setlayout, {.ui = DWINDLE}},
+    {MODKEY|ControlMask, XK_m, setlayout, {.ui = MIRROR_DWINDLE}},
+    {MODKEY|ControlMask, XK_f, setlayout, {.ui = FLOATING}},
 };
 
 #endif

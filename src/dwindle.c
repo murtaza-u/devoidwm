@@ -84,12 +84,12 @@ void tile() {
     for (; c; c = nexttiled(c -> next, 0), n ++);
 
     switch (root.layout) {
-        case 0:
+        case DWINDLE:
             mwidth = root.width * (n > nmaster ? mratio : 1);
             dwindle(nexttiled(head, 0), NULL, 0, n, mwidth);
             break;
 
-        case 1:
+        case MIRROR_DWINDLE:
             mwidth = root.height * (n > nmaster ? mratio : 1);
             mirror_dwindle(nexttiled(head, 0), NULL, 0, n, mwidth);
             break;
@@ -97,7 +97,7 @@ void tile() {
 }
 
 void setlayout(Arg arg) {
-    if (arg.ui <= sizeof(layouts) && arg.ui != root.layout) {
+    if (arg.ui != root.layout) {
         root.layout = arg.ui;
         tile();
     }
