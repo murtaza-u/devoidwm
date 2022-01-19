@@ -28,6 +28,7 @@ struct Root {
     Window win;
     int x, y;
     unsigned int width, height;
+    unsigned int layout;
 };
 extern struct Root root;
 

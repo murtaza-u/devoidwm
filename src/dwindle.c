@@ -47,6 +47,33 @@ void dwindle(Client *c, Client *prev, unsigned int i, unsigned int n, unsigned i
     if (prev) resize(prev);
 }
 
+void mirror_dwindle(Client *c, Client *prev, unsigned int i, unsigned int n, unsigned int mwidth) {
+    if (!c) return;
+
+    if (i == 0) {
+        c -> x = root.x;
+        c -> y = root.y;
+        c -> height = mwidth;
+        c -> width = root.width;
+    } else if (i < nmaster && i == 1) {
+        prev -> width /= 2;
+        c -> x = prev -> x + prev -> width;
+        c -> y = prev -> y;
+        c -> height = prev -> height;
+        c -> width = prev -> width;
+    } else if (i == nmaster) {
+        c -> y = root.height * mratio;
+        c -> x = root.x;
+        c -> height = root.height * (1 - mratio);
+        c -> width = root.width;
+    } else shrink(prev, &c -> x, &c -> y, &c -> width, &c -> height);
+
+    mirror_dwindle(nexttiled(c -> next, 0), c, i + 1, n, mwidth);
+
+    if (i == n - 1) resize(c);
+    if (prev) resize(prev);
+}
+
 void tile() {
     if (!head) return;
 
@@ -56,6 +83,22 @@ void tile() {
     Client *c = nexttiled(head, 0);
     for (; c; c = nexttiled(c -> next, 0), n ++);
 
-    mwidth = root.width * (n > nmaster ? mratio : 1);
-    dwindle(nexttiled(head, 0), NULL, 0, n, mwidth);
+    switch (root.layout) {
+        case 0:
+            mwidth = root.width * (n > nmaster ? mratio : 1);
+            dwindle(nexttiled(head, 0), NULL, 0, n, mwidth);
+            break;
+
+        case 1:
+            mwidth = root.height * (n > nmaster ? mratio : 1);
+            mirror_dwindle(nexttiled(head, 0), NULL, 0, n, mwidth);
+            break;
+    }
+}
+
+void setlayout(Arg arg) {
+    if (arg.ui <= sizeof(layouts) && arg.ui != root.layout) {
+        root.layout = arg.ui;
+        tile();
+    }
 }

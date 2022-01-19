@@ -9,6 +9,7 @@
 #include "src/tags.h"
 #include "src/focus.h"
 #include "src/rules.h"
+#include "src/dwindle.h"
 
 /* size of the master window. Range -> [0.05, 0.95] */
 extern float mratio;
@@ -39,6 +40,11 @@ static const Rule rules[] = {
     /* class            title       isfloating      isfullscreen */
     {"Gcolor3",         NULL,       1,              0            },
     {"mpv",             NULL,       0,              1            },
+};
+
+static char *layouts[] = {
+    "dwindle",
+    "mirror_dwindle",
 };
 
 /* Mod4Mask -> super key
@@ -107,6 +113,9 @@ static const Key keys[] = {
     {MODKEY|ShiftMask, XK_7, tag, {.ui = 1 << 6}},
     {MODKEY|ShiftMask, XK_8, tag, {.ui = 1 << 7}},
     {MODKEY|ShiftMask, XK_9, tag, {.ui = 1 << 8}},
+
+    {MODKEY|ControlMask, XK_d, setlayout, {.ui = 0}},
+    {MODKEY|ControlMask, XK_m, setlayout, {.ui = 1}},
 };
 
 #endif

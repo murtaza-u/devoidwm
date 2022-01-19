@@ -47,6 +47,7 @@ void start() {
     root.y = margin_top;
     root.width = XDisplayWidth(dpy, screen) - (margin_left + margin_right);
     root.height = XDisplayHeight(dpy, screen) - (margin_top + margin_bottom);
+    root.layout = 0;
 
     head = sel = stack = NULL;
 
