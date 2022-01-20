@@ -186,7 +186,7 @@ void resize(Client *c) {
         XMoveResizeWindow(dpy, c -> win, c -> x, c -> y, c -> width, c -> height);
     else
         XMoveResizeWindow(dpy, c -> win, c -> x + gap, c -> y + gap,
-                          c -> width - gap * 2, c -> height - gap * 2);
+                          c -> width - (gap * 2 + border_width), c -> height - (gap * 2 + border_width));
 }
 
 void incmaster(Arg arg) {
