@@ -29,7 +29,7 @@ extern unsigned int gap;
 /* Border around windows */
 static const char focused_border_color[] = "#7ea89e";
 static const char normal_border_color[] = "#10151a";
-static const unsigned int border_width = 2;
+static const unsigned int border_width = 0;
 
 static const Rule rules[] = {
     /* xprop:
