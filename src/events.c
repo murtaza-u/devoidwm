@@ -131,8 +131,8 @@ void clientmessage(XEvent *event) {
     }
 }
 
-void unmapnotify(XEvent *e) {
-    XUnmapEvent *ev = &e -> xunmap;
+void unmapnotify(XEvent *event) {
+    XUnmapEvent *ev = &event -> xunmap;
     Client *c;
 
     if ((c = wintoclient(ev -> window))) {
@@ -158,6 +158,23 @@ void unmapnotify(XEvent *e) {
     }
 }
 
+void configurerequest(XEvent *event) {
+    Client *c;
+    XConfigureRequestEvent *ev = &event -> xconfigurerequest;
+    XWindowChanges wc;
+
+    if (!(c = wintoclient(ev -> window))) {
+        wc.x = ev -> x;
+        wc.y = ev -> y;
+        wc.width = ev -> width;
+        wc.height = ev -> height;
+        wc.border_width = ev -> border_width;
+        wc.sibling = ev -> above;
+        wc.stack_mode = ev -> detail;
+        XConfigureWindow(dpy, ev -> window, ev -> value_mask, &wc);
+    }
+}
+
 void (*handle_events[LASTEvent])(XEvent *event) = {
     [KeyPress] = keypress,
     [ButtonPress] = buttonpress,
@@ -168,4 +185,5 @@ void (*handle_events[LASTEvent])(XEvent *event) = {
     [EnterNotify] = enternotify,
     [ClientMessage] = clientmessage,
     [UnmapNotify] = unmapnotify,
+    [ConfigureRequest] = configurerequest,
 };
