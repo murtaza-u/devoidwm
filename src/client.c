@@ -212,6 +212,7 @@ void lock_fullscr(Client *c) {
     XMoveResizeWindow(dpy, c -> win, 0, 0, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
     c -> isfullscr = 1;
     XSetWindowBorderWidth(dpy, c -> win, 0);
+    XRaiseWindow(dpy, c -> win);
 }
 
 void unlock_fullscr(Client *c) {
