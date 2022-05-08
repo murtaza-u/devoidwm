@@ -28,7 +28,8 @@ void focus(Client *c) {
 
     if (c -> isfloating) XRaiseWindow(dpy, c -> win);
 
-    CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW, (unsigned char *)&c -> win, 1);
+    CHANGEATOMPROP(net_atoms[NetActiveWindow], XA_WINDOW,
+                   (unsigned char *)&c -> win, 1);
     sendevent(c -> win, XInternAtom(dpy, "WM_TAKE_FOCUS", False));
 
     detachstack(c);

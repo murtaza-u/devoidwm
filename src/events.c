@@ -60,10 +60,13 @@ void maprequest(XEvent *event) {
     XMapRequestEvent *ev = &event -> xmaprequest;
 
     if (!(XGetWindowAttributes(dpy, ev -> window, &attr))) return;
-    if (attr.override_redirect) return; /* docs says window managers must ignore such windows */
+
+    /* docs says window managers must ignore such windows */
+    if (attr.override_redirect) return;
 
     /* emit DestroyNotify and EnterNotify event */
-    XSelectInput(dpy, ev -> window, StructureNotifyMask|EnterWindowMask|PropertyChangeMask);
+    XSelectInput(dpy, ev -> window,
+                StructureNotifyMask|EnterWindowMask|PropertyChangeMask);
 
     /* for pinentry-gtk (and maybe some other programs) */
     Client *c;

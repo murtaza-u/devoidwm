@@ -135,12 +135,13 @@ void showhide(Client *c) {
     } else {
         showhide(c -> next);
         XGetWindowAttributes(dpy, c -> win, &attr);
-        if (attr.x == XDisplayWidth(dpy, screen)) return;
+        if (attr.x == DW) return;
         c -> x = attr.x;
         c -> y = attr.y;
         c -> width = attr.width;
         c -> height = attr.height;
-        XMoveWindow(dpy, c -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
+        XMoveWindow(dpy, c -> win, DW,
+                    DH);
     }
 }
 
@@ -186,7 +187,8 @@ void resize(Client *c) {
         XMoveResizeWindow(dpy, c -> win, c -> x, c -> y, c -> width, c -> height);
     else
         XMoveResizeWindow(dpy, c -> win, c -> x + gap, c -> y + gap,
-                          c -> width - (gap * 2 + border_width), c -> height - (gap * 2 + border_width));
+                          c -> width - (gap * 2 + border_width),
+                          c -> height - (gap * 2 + border_width));
 }
 
 void incmaster(Arg arg) {
@@ -209,7 +211,7 @@ void setmratio(Arg arg) {
 }
 
 void lock_fullscr(Client *c) {
-    XMoveResizeWindow(dpy, c -> win, 0, 0, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
+    XMoveResizeWindow(dpy, c -> win, 0, 0, DW, DH);
     c -> isfullscr = 1;
     XSetWindowBorderWidth(dpy, c -> win, 0);
     XRaiseWindow(dpy, c -> win);

@@ -35,7 +35,7 @@ bool getfullscrlock(unsigned int tags) {
 void tag(Arg arg) {
     if (arg.ui == sel -> tags) return;
     sel -> tags = arg.ui;
-    XMoveWindow(dpy, sel -> win, XDisplayWidth(dpy, screen), XDisplayHeight(dpy, screen));
+    XMoveWindow(dpy, sel -> win, DW, DH);
     if (!sel -> isfloating) tile();
     focus(NULL);
     XSync(dpy, True);

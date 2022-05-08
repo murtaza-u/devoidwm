@@ -45,8 +45,8 @@ void start() {
     root.win = DefaultRootWindow(dpy);
     root.x = margin_left;
     root.y = margin_top;
-    root.width = XDisplayWidth(dpy, screen) - (margin_left + margin_right);
-    root.height = XDisplayHeight(dpy, screen) - (margin_top + margin_bottom);
+    root.w = DW - (margin_left + margin_right);
+    root.h = DH - (margin_top + margin_bottom);
     root.layout = 0;
 
     head = sel = stack = NULL;
@@ -75,10 +75,10 @@ void grab() {
         XGrabKey(dpy, XKeysymToKeycode(dpy, keys[i].keysym), keys[i].modifier,
             root.win, True, GrabModeAsync, GrabModeAsync);
 
-    XGrabButton(dpy, 1, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync,
-                None, None);
-    XGrabButton(dpy, 3, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync, GrabModeAsync,
-                None, None);
+    XGrabButton(dpy, 1, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync,
+                GrabModeAsync, None, None);
+    XGrabButton(dpy, 3, MODKEY, root.win, True, ButtonPressMask, GrabModeAsync,
+                GrabModeAsync, None, None);
 }
 
 void loop() {

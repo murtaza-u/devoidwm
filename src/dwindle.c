@@ -5,7 +5,7 @@
 #include "devoid.h"
 #include "../config.h"
 
-void shrink(Client *c, int *x, int *y, unsigned int *width, unsigned int *height) {
+void shrink(Client *c, int *x, int *y, unsigned int *w, unsigned int *h) {
     if (c -> width >= c -> height) {
         c -> width /= 2;
         *x = c -> x + c -> width;
@@ -16,18 +16,18 @@ void shrink(Client *c, int *x, int *y, unsigned int *width, unsigned int *height
         *x = c -> x;
     }
 
-    *width = c -> width;
-    *height = c -> height;
+    *w = c -> width;
+    *h = c -> height;
 }
 
-void dwindle(Client *c, Client *prev, unsigned int i, unsigned int n, unsigned int mwidth) {
+void dwindle(Client *c, Client *prev, unsigned int i, unsigned int n, unsigned int mw) {
     if (!c) return;
 
     if (i == 0) {
         c -> x = root.x;
         c -> y = root.y;
-        c -> width = mwidth;
-        c -> height = root.height;
+        c -> width = mw;
+        c -> height = root.h;
     } else if (i < nmaster && i == 1) {
         prev -> height /= 2;
         c -> y = prev -> y + prev -> height;
@@ -35,26 +35,26 @@ void dwindle(Client *c, Client *prev, unsigned int i, unsigned int n, unsigned i
         c -> width = prev -> width;
         c -> height = prev -> height;
     } else if (i == nmaster) {
-        c -> x = root.width * mratio;
+        c -> x = root.w * mratio;
         c -> y = root.y;
-        c -> width = root.width * (1 - mratio);
-        c -> height = root.height;
+        c -> width = root.w * (1 - mratio);
+        c -> height = root.h;
     } else shrink(prev, &c -> x, &c -> y, &c -> width, &c -> height);
 
-    dwindle(nexttiled(c -> next, 0), c, i + 1, n, mwidth);
+    dwindle(nexttiled(c -> next, 0), c, i + 1, n, mw);
 
     if (i == n - 1) resize(c);
     if (prev) resize(prev);
 }
 
-void mirror_dwindle(Client *c, Client *prev, unsigned int i, unsigned int n, unsigned int mwidth) {
+void mirror_dwindle(Client *c, Client *prev, unsigned int i, unsigned int n, unsigned int mw) {
     if (!c) return;
 
     if (i == 0) {
         c -> x = root.x;
         c -> y = root.y;
-        c -> height = mwidth;
-        c -> width = root.width;
+        c -> height = mw;
+        c -> width = root.w;
     } else if (i < nmaster && i == 1) {
         prev -> width /= 2;
         c -> x = prev -> x + prev -> width;
@@ -62,13 +62,13 @@ void mirror_dwindle(Client *c, Client *prev, unsigned int i, unsigned int n, uns
         c -> height = prev -> height;
         c -> width = prev -> width;
     } else if (i == nmaster) {
-        c -> y = root.height * mratio;
+        c -> y = root.h * mratio;
         c -> x = root.x;
-        c -> height = root.height * (1 - mratio);
-        c -> width = root.width;
+        c -> height = root.h * (1 - mratio);
+        c -> width = root.w;
     } else shrink(prev, &c -> x, &c -> y, &c -> width, &c -> height);
 
-    mirror_dwindle(nexttiled(c -> next, 0), c, i + 1, n, mwidth);
+    mirror_dwindle(nexttiled(c -> next, 0), c, i + 1, n, mw);
 
     if (i == n - 1) resize(c);
     if (prev) resize(prev);
@@ -77,7 +77,7 @@ void mirror_dwindle(Client *c, Client *prev, unsigned int i, unsigned int n, uns
 void tile() {
     if (!head) return;
 
-    unsigned int n = 0, mwidth;
+    unsigned int n = 0, mw;
 
     /* calculating total clients */
     Client *c = nexttiled(head, 0);
@@ -85,13 +85,13 @@ void tile() {
 
     switch (root.layout) {
         case DWINDLE:
-            mwidth = root.width * (n > nmaster ? mratio : 1);
-            dwindle(nexttiled(head, 0), NULL, 0, n, mwidth);
+            mw = root.w * (n > nmaster ? mratio : 1);
+            dwindle(nexttiled(head, 0), NULL, 0, n, mw);
             break;
 
         case MIRROR_DWINDLE:
-            mwidth = root.height * (n > nmaster ? mratio : 1);
-            mirror_dwindle(nexttiled(head, 0), NULL, 0, n, mwidth);
+            mw = root.h * (n > nmaster ? mratio : 1);
+            mirror_dwindle(nexttiled(head, 0), NULL, 0, n, mw);
             break;
     }
 }

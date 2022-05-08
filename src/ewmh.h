@@ -9,7 +9,7 @@
 #define CHANGEATOMPROP(prop, type, data, nelments) \
     XChangeProperty(dpy, root.win, prop, type, 32, PropModeReplace, data, nelments);
 
-#define GETATOMIDENTIFIER(name) XInternAtom(dpy, name, False)
+#define GETATOMID(name) XInternAtom(dpy, name, False)
 
 /* EWMH atoms */
 enum { NetSupported, NetCurrentDesktop, NetNumberOfDesktops, NetWMWindowType,

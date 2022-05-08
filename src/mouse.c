@@ -24,9 +24,11 @@ void handle_buttonpress(XEvent *event) {
     if(event -> xbutton.subwindow == None ||
         (event -> xbutton.button == 1 && event -> xbutton.button == 3)) return;
 
-    if (XGrabPointer(dpy, event -> xbutton.subwindow, True, PointerMotionMask|ButtonReleaseMask,
-                     GrabModeAsync, GrabModeAsync, None,
-                     event -> xbutton.button == 1 ? cursors[CurMove] : cursors[CurResize],
+    if (XGrabPointer(dpy, event -> xbutton.subwindow, True,
+                     PointerMotionMask|ButtonReleaseMask, GrabModeAsync,
+                     GrabModeAsync, None,
+                     event -> xbutton.button == 1 ?
+                     cursors[CurMove] : cursors[CurResize],
                      CurrentTime) != GrabSuccess)
         return;
 

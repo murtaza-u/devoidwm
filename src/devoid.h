@@ -7,6 +7,8 @@
 
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 #define MIN(a, b) (a) < (b) ? (a) : (b)
+#define DW XDisplayWidth(dpy, screen)
+#define DH XDisplayHeight(dpy, screen)
 
 void die(char *);
 void sigchld(int);
@@ -27,7 +29,7 @@ extern unsigned int seltags, nmaster, selbpx, normbpx;
 struct Root {
     Window win;
     int x, y;
-    unsigned int width, height;
+    unsigned int w, h;
     unsigned int layout;
 };
 extern struct Root root;

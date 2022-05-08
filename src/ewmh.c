@@ -22,21 +22,22 @@ Atom get_atom_prop(Window win, Atom atom) {
 }
 
 void setup_ewmh_atoms() {
-    net_atoms[NetSupported] = GETATOMIDENTIFIER("_NET_SUPPORTED");
-    net_atoms[NetNumberOfDesktops] = GETATOMIDENTIFIER("_NET_NUMBER_OF_DESKTOPS");
-    net_atoms[NetCurrentDesktop] = GETATOMIDENTIFIER("_NET_CURRENT_DESKTOP");
-    net_atoms[NetWMState] = GETATOMIDENTIFIER("_NET_WM_STATE");
-    net_atoms[NetWMStateFullscreen] = GETATOMIDENTIFIER("_NET_WM_STATE_FULLSCREEN");
-    net_atoms[NetWMStateAbove] = GETATOMIDENTIFIER("_NET_WM_STATE_ABOVE");
-    net_atoms[NetWMWindowType] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE");
-    net_atoms[NetWMWindowTypeDialog] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_DIALOG");
-    net_atoms[NetWMWindowTypeMenu] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_MENU");
-    net_atoms[NetWMWindowTypeSplash] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_SPLASH");
-    net_atoms[NetWMWindowTypeToolbar] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_TOOLBAR");
-    net_atoms[NetWMWindowTypeUtility] = GETATOMIDENTIFIER("_NET_WM_WINDOW_TYPE_UTILITY");
-    net_atoms[NetActiveWindow] = GETATOMIDENTIFIER("_NET_ACTIVE_WINDOW");
+    net_atoms[NetSupported] = GETATOMID("_NET_SUPPORTED");
+    net_atoms[NetNumberOfDesktops] = GETATOMID("_NET_NUMBER_OF_DESKTOPS");
+    net_atoms[NetCurrentDesktop] = GETATOMID("_NET_CURRENT_DESKTOP");
+    net_atoms[NetWMState] = GETATOMID("_NET_WM_STATE");
+    net_atoms[NetWMStateFullscreen] = GETATOMID("_NET_WM_STATE_FULLSCREEN");
+    net_atoms[NetWMStateAbove] = GETATOMID("_NET_WM_STATE_ABOVE");
+    net_atoms[NetWMWindowType] = GETATOMID("_NET_WM_WINDOW_TYPE");
+    net_atoms[NetWMWindowTypeDialog] = GETATOMID("_NET_WM_WINDOW_TYPE_DIALOG");
+    net_atoms[NetWMWindowTypeMenu] = GETATOMID("_NET_WM_WINDOW_TYPE_MENU");
+    net_atoms[NetWMWindowTypeSplash] = GETATOMID("_NET_WM_WINDOW_TYPE_SPLASH");
+    net_atoms[NetWMWindowTypeToolbar] = GETATOMID("_NET_WM_WINDOW_TYPE_TOOLBAR");
+    net_atoms[NetWMWindowTypeUtility] = GETATOMID("_NET_WM_WINDOW_TYPE_UTILITY");
+    net_atoms[NetActiveWindow] = GETATOMID("_NET_ACTIVE_WINDOW");
 
-    CHANGEATOMPROP(net_atoms[NetSupported], XA_ATOM, (unsigned char *)net_atoms, NetLast);
+    CHANGEATOMPROP(net_atoms[NetSupported], XA_ATOM,
+                (unsigned char *)net_atoms, NetLast);
 }
 
 void apply_window_state(Client *c) {
